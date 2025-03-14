@@ -83,7 +83,7 @@ For product information see "Doc/NextPM hardware guide V3.4.pdf"
         3. Serial connections are always crossed (RX on one side is connected with TX on other side)
         4. The Tx and Rx signal logical level is TTL (+3.3V)
         5. The ESP-MCU serial communication must be configured as followed :
-                ● Default baud rate : 115 200
+                ● Default baud rate : 115200
                 ● Number of data bits: 8
                 ● Parity : even
                 ● Number of stop bits: 1
