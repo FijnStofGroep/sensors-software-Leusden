@@ -66,7 +66,7 @@
  * WiFi signal (RSSI). 													*
  * 																		*
  * 2025-03-02															*
- * Fixed Tera NextPM sensor driver problems.                            *
+ * Fixed Tera NextPM sensor RS232 driver problems.                      *
  *                                                                      *
  * There is a hardware WDT and a software WDT.							*
  * The HW WDT is always running and will reset the MCU after about		* 
@@ -95,11 +95,11 @@
  * RAM:     [=====     ]  47.4% (used 38864 bytes from 81920 bytes)		*
  * PROGRAM: [======    ]  64.1% (used 669133 bytes from 1044464 bytes)	*
  *                                                                      *
- * latest build 2025-03-10												*
+ * latest build 2025-03-17												*
  * PLATFORM: Espressif 8266 (3.0.0) > NodeMCU 1.0 (ESP-12E Module)		*
  * HARDWARE: ESP8266 160MHz, 80KB RAM, 4MB Flash						*
  * RAM:     [=====     ]  46.8% (used 38300 bytes from 81920 bytes)		*
- * PROGRAM: [======    ]  63.5% (used 662785 bytes from 1044464 bytes)	*
+ * PROGRAM: [======    ]  63.5% (used 662821 bytes from 1044464 bytes)	*
  ************************************************************************/
 
 // VS: Convert Arduino file to C++ manually.
@@ -5770,8 +5770,10 @@ static __noinline void fetchSensorHPM(String &s)
 }
 
 /*****************************************************************
- * read Tera Next PM-Sensor get sensor values                    *
+ * read Tera Next PM-Sensor sensor values.	                     *
  *****************************************************************/
+/// @brief : reference to String &s
+/// @param s 
 static void fetchSensorNPM(String &s)
 {
 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_NPM));
@@ -5962,9 +5964,10 @@ static void fetchSensorNPM(String &s)
 }
 
 /*****************************************************************
- * read Piera Systems IPS-7100 sensor sensor values                 *
+ * read Piera Systems IPS-7100 sensor values.		             *
  *****************************************************************/
-
+/// @brief : reference to String &s
+/// @param s 
 static void fetchSensorIPS(String &s)
 {
 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_IPS));
