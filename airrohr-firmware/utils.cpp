@@ -252,21 +252,25 @@ bool launchUpdateLoader(const String& md5)
 
 	File loaderFile = SPIFFS.open(F("/loader.bin"), "r");
 
+    debug_outln_verbose(F("UpdateLoader 1."));
 	if (!loaderFile) 
 	{
 		return false;
 	}
 
+    debug_outln_verbose(F("UpdateLoader 2."));
 	if (!Update.begin(loaderFile.size(), U_FLASH)) 
 	{
 		return false;
 	}
 
+    debug_outln_verbose(F("UpdateLoader 3."));
 	if (md5.length() && !Update.setMD5(md5.c_str())) 
 	{
 		return false;
 	}
 
+    debug_outln_verbose(F("UpdateLoader 4."));
 	// Writes the remaining bytes from the Stream (loader.bin) to the flash memory.
 	if (Update.writeStream(loaderFile) != loaderFile.size()) 
 	{
@@ -275,6 +279,7 @@ bool launchUpdateLoader(const String& md5)
 
 	loaderFile.close();
 
+    debug_outln_verbose(F("UpdateLoader 5."));
 	if (!Update.end()) 
 	{
 		return false;
