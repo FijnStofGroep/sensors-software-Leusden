@@ -1,6 +1,6 @@
 /*
  *	airRohr firmware
- *	Copyright (C) 2016-2018 Code for Stuttgart a.o.
+ *	Copyright (C) 2016-2025 Code for Stuttgart a.o.
  *
  *  German translations
  *
@@ -130,7 +130,9 @@ const char INTL_TEMPERATURE[] PROGMEM = "Temperatur";
 const char INTL_HUMIDITY[] PROGMEM = "rel. Luftfeuchte";
 const char INTL_PRESSURE[] PROGMEM = "Luftdruck";
 const char INTL_VOC[] PROGMEM = "flüchtige organische Stoffe VOC";
+const char INTL_VOC_LABLE[] PROGMEM = "(index)";
 const char INTL_NOX[] PROGMEM = "Stickoxide NOx";
+const char INTL_NOX_LABLE[] PROGMEM = "ppm";
 const char INTL_DEW_POINT[] PROGMEM = "Taupunkt";
 const char INTL_CO2_PPM[] PROGMEM = "CO₂";
 const char INTL_LEQ_A[] PROGMEM = "LAeq";
@@ -150,12 +152,18 @@ const char INTL_SIGNAL_QUALITY[] PROGMEM = "Qualität";
 #define INTL_VALUE "Wert"
 
 #include "./airrohr-logo-common.h"
-const char INTL_SIM7000_CONFIGURATION[] PROGMEM = "Sim7000 LTE";
-const char INTL_SIM_APN[] PROGMEM = "APN";
-const char INTL_SIM_ID[] PROGMEM = "ID";
-const char INTL_SIM_GPS[] PROGMEM = "GPS";
-const char INTL_SIM_TYPE[] PROGMEM = "Type";
-const char INTL_SIM_MODE[] PROGMEM = "Mode";
+
+#define INTL_ENABLE_MOREWIFI "Enable more Wifi SSID (enable after reboot)"
+#define INTL_MORE_TEMP_SENSORS "Temperature Sensors"
+const char INTL_SEN5X_ON[] PROGMEM = "Fan always on";
+const char INTL_SEN5X_PIN16[] PROGMEM = "On = PIN 16 (SEN5X), Off = PIN 1 (SPS30)";
+const char INTL_SENSORCOMMUNITY[] PROGMEM = "Sensor Community:";
+
+//const char INTL_UPDATE_FIRMWARE[] PROGMEM = "Update Firmware";
+#define INTL_UPDATE_FIRMWARE "Update Firmware"
+
+#define INTL_SEN5X_EMP_PM "Emulate PM SEN5X"
+#define INTL_SEN5X_EMP_TH "Emulate TH SEN5X"
 
 #define INTL_ENABLE_RCWL_0516 "Enable Radar Motion (after enable reboot and insert server credentials)"
 

@@ -129,7 +129,9 @@ const char INTL_TEMPERATURE[] PROGMEM = "Temperatuur";
 const char INTL_HUMIDITY[] PROGMEM = "Rel. luchtvochtigheid";
 const char INTL_PRESSURE[] PROGMEM = "Luchtdruk";
 const char INTL_VOC[] PROGMEM = "Vluchtige organische stoffen";
+const char INTL_VOC_LABLE[] PROGMEM = "(index)";
 const char INTL_NOX[] PROGMEM = "Stikstofoxiden";
+const char INTL_NOX_LABLE[] PROGMEM = "(index)";
 const char INTL_DEW_POINT[] PROGMEM = "Dauwpunt";
 const char INTL_CO2_PPM[] PROGMEM = "CO₂";
 const char INTL_LEQ_A[] PROGMEM = "LAeq";
@@ -148,17 +150,19 @@ const char INTL_SIGNAL_QUALITY[] PROGMEM = "Signaalkwaliteit";
 #define INTL_PARAMETER "Parameter"
 #define INTL_VALUE "Waarde"
 
+#define INTL_ENABLE_MOREWIFI "Enable more Wifi SSID (enable after reboot)"
+#define INTL_MORE_TEMP_SENSORS "Temperature Sensors"
+const char INTL_SEN5X_ON[] PROGMEM = "Fan always on";
+const char INTL_SEN5X_PIN16[] PROGMEM = "On = PIN 16 (SEN5X), Off = PIN 1 (SPS30)";
+const char INTL_SENSORCOMMUNITY[] PROGMEM = "Sensor Community:";
+
+//const char INTL_UPDATE_FIRMWARE[] PROGMEM = "Update Firmware";
+#define INTL_UPDATE_FIRMWARE "Update Firmware"
+
+#define INTL_SEN5X_EMP_PM "Emulate PM SEN5X"
+#define INTL_SEN5X_EMP_TH "Emulate TH SEN5X"
+
 #define INTL_ENABLE_S7000 "Enable S7000 LTE"
-
-const char INTL_SIM7000[] PROGMEM = "Sim7000 LTE";
-const char INTL_SIM7000_CONFIGURATION[] PROGMEM = "Sim7000 LTE";
-const char INTL_SIM7000_DIS[] PROGMEM = "Disable";
-
-const char INTL_SIM_APN[] PROGMEM = "APN";
-const char INTL_SIM_ID[] PROGMEM = "ID";
-const char INTL_SIM_GPS[] PROGMEM = "GPS";
-const char INTL_SIM_TYPE[] PROGMEM = "Type";
-const char INTL_SIM_MODE[] PROGMEM = "Mode";
 
 #define INTL_ENABLE_RCWL_0516 "Radar Motion aan (after enable reboot and insert server credentials)"
 
