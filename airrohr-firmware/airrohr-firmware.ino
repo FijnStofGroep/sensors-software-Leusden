@@ -3455,7 +3455,7 @@ static void webserver_values()
 		add_table_nc_value(FPSTR(SENSORS_SPS30), FPSTR(WEB_NC2k5), last_value_SPS30_N25);
 		add_table_nc_value(FPSTR(SENSORS_SPS30), FPSTR(WEB_NC4k0), last_value_SPS30_N4);
 		add_table_nc_value(FPSTR(SENSORS_SPS30), FPSTR(WEB_NC10), last_value_SPS30_N10);
-		add_table_value(FPSTR(SENSORS_SPS30), FPSTR(WEB_TPS), check_display_value(last_value_SPS30_TS, -1, 1, 0), "µm");
+		add_table_value(FPSTR(SENSORS_SPS30), FPSTR(WEB_TPS), check_display_value(last_value_SPS30_TS, -1, 1, 0), F("µm"));
 		page_content += FPSTR(EMPTY_ROW);
 	}
 
@@ -8631,7 +8631,7 @@ static unsigned long sendDataToOptionalApis(const String &data)
 
 	if (cfg::send2fsapp)
 	{ // for feinstaub program developt by chillibits.com
-		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("Server FeinStaube App: "));
+		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("Server FeinStaub App: "));
 
 		if (cfg::sen5x_read && (!is_Sen5x_init_failed))
 		{
