@@ -764,13 +764,13 @@ void NPM_sendCmd(PmSensorCmd2 cmd)
 
 	serialNPM.write(sndbuf, cmd_len);
 
-    NPM_data_reader(sndbuf, cmd_len, false);
+    NPM_data_debug(sndbuf, cmd_len, false);
 }
 
 /*****************************************************************
  * Helpers : Display Tera NextPM data on USB port.               *
  *****************************************************************/
-void NPM_data_reader(const uint8_t data[], size_t size, bool RxdMode)
+void NPM_data_debug(const uint8_t data[], size_t size, bool RxdMode)
 {
     String reader = RxdMode ? F("Response: ") : F("Send: ");
 
