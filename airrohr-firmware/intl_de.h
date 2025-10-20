@@ -26,6 +26,7 @@ const char INTL_PMS[] PROGMEM = "Plantower PMS(1,3,5,6,7)003 ({pm})";
 const char INTL_HPM[] PROGMEM = "Honeywell PM ({pm})";
 const char INTL_NPM[] PROGMEM = "Tera Sensor Next PM ({pm})";
 const char INTL_NPM_FULLTIME[] PROGMEM = "Next PM fulltime";
+#define INTL_NPM_HEATER_MODE "Heater Mode"
 const char INTL_IPS[] PROGMEM = "Piera Systems IPS-7100 ({pm})";
 const char INTL_SEN5X[] PROGMEM = "Sensirion SEN5X ({pm}, {t}, {h}, {voc}, {nox})";
 const char INTL_SPS30[] PROGMEM = "Sensirion SPS30 ({pm})";
