@@ -57,6 +57,7 @@ enum ConfigShapeId {
 	Config_hpm_read,
 	Config_npm_read,
 	Config_npm_fulltime,
+	Config_npm_heater_mode,
 	Config_ips_read,
 	Config_sen5x_read,
 	Config_sen5x_on,
@@ -155,6 +156,7 @@ static constexpr char CFG_KEY_PMS_READ[] PROGMEM = "pms_read";
 static constexpr char CFG_KEY_HPM_READ[] PROGMEM = "hpm_read";
 static constexpr char CFG_KEY_NPM_READ[] PROGMEM = "npm_read";
 static constexpr char CFG_KEY_NPM_FULLTIME[] PROGMEM = "npm_fulltime";
+static constexpr char CFG_KEY_NPM_HEATER_MODE[] PROGMEM = "npm_heater_mode";
 static constexpr char CFG_KEY_IPS_READ[] PROGMEM = "ips_read";
 static constexpr char CFG_KEY_SEN5X_READ[] PROGMEM = "sen5x_read";
 static constexpr char CFG_KEY_SEN5X_ON[] PROGMEM = "sen5x_on";
@@ -253,6 +255,7 @@ static constexpr ConfigShapeEntry configShape[] PROGMEM = {
 	{ Config_Type_Bool, 0, CFG_KEY_HPM_READ, &cfg::hpm_read },
 	{ Config_Type_Bool, 0, CFG_KEY_NPM_READ, &cfg::npm_read },
 	{ Config_Type_Bool, 0, CFG_KEY_NPM_FULLTIME, &cfg::npm_fulltime },
+	{ Config_Type_UInt, 0, CFG_KEY_NPM_HEATER_MODE, &cfg::npm_heater_mode },
 	{ Config_Type_Bool, 0, CFG_KEY_IPS_READ, &cfg::ips_read },
 	{ Config_Type_Bool, 0, CFG_KEY_SEN5X_READ, &cfg::sen5x_read },
 	{ Config_Type_Bool, 0, CFG_KEY_SEN5X_ON, &cfg::sen5x_on },

@@ -22,6 +22,7 @@ Bool		pms_read
 Bool		hpm_read
 Bool		npm_read
 Bool        npm_fulltime
+UInt        npm_heater_mode
 Bool		ips_read
 Bool		sen5x_read
 Bool		sen5x_on
