@@ -1,14 +1,24 @@
+
+FWL-2025-10-P7
+* Add Tera NextPM sensor Heater mode option: (NONE, OFF, ON, AUTO-REGULATED, HEATING_CONTROL).
+  - Note: HEATING_CONTROL => humidity > 65% Heater ON, humidity < 60% Heater OFF.
+
+FWL-2025-01-P5
+* Fixed Tera NextPM sensor RS232 driver problems.
+
 FWL-2024-04-P5
 * Change default config
 
 FWL-2024-03-B5_6 => FWL-2024-03-P5
 * New ca-root certificate
+* Add new Debug level = 88 => Development option.
+  * Add [env:nodemcuv2_debug_en] section in platformio.ini project file.
 
 FWL-2024-03-B5
 * Add SEN5X pin-16 for sensor.community. (send format: PM, NC, TS, Temperature, Humidity)
 * For other API's see selection box "Emulate SEN5X-PM and -TH" prefix sensor ID (send format: PM, NC, TPS, VOC, NOx, Temperature, Humidity )
 * Add Language selection combox[EN,NL,DE,FR]
-* Add Auto update firware checkbox
+* Add Auto update firmware checkbox
 
 FWL-2024-03-B4
 * ADD OTA-firmware Update selectable by web-page. 

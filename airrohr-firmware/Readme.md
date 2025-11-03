@@ -68,7 +68,7 @@ Please refer to the [Pinout of NodeMCU v2 and v3](https://github.com/opendata-st
 * Pin 5 (5V)   -> VU
 * Pin 6 (1m)   -> unused
 
-### Tera NextPM (serial)
+### Tera NextPM (NPM) (serial)
 For product information see "Doc/NextPM hardware guide V3.4.pdf"
 * Pin 1 (GND)                             -> GND
 * Pin 2 (5V)                              -> VU
@@ -87,6 +87,10 @@ For product information see "Doc/NextPM hardware guide V3.4.pdf"
                 ● Number of data bits: 8
                 ● Parity : even
                 ● Number of stop bits: 1
+        6. The average current consumption is lower than 70mA but it can go up to 210mA in case of
+           heater activation (manual enable or automatic due to high relative humidity). 
+           The average current consumption can be reduced to 20mA by turning the sensor into sleep mode.
+           (disable "Fan always ON" option)
 
 
 ### DHT22
@@ -183,7 +187,7 @@ For use of multiple sensors with Sensor.Community (formerly Luftdaten.info), you
 the following API pins hardcoded. These match what the Sensor.Community API expect and will be used
 by default when selecting the correct sensor model.
 
-* HPM/PMS/SDS011/SPS30 => Pin 1
+* HPM/PMS/SDS011/SPS30/NPM => Pin 1
 * BME280 => Pin 11
 * BMP180/BMP280 => Pin 3
 * DHT22/HTU21D/SHT3x => Pin 7
