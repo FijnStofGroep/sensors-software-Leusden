@@ -8262,7 +8262,7 @@ static void initNEXTPM()
 			uint res;
 
 			if ((NPM_HEATER_MODE)cfg::npm_heater_mode == NPM_HEATER_MODE::HEATING_CONTROL)
-			{
+			{// init heater mode OFF.
 				res = NPM_Set_Heater_Mode(NPM_HEATER_MODE::OFF);
 			}
 			else
