@@ -8270,7 +8270,7 @@ static void initNEXTPM()
 				res = NPM_Set_Heater_Mode((NPM_HEATER_MODE)cfg::npm_heater_mode);
 			}
 
-			debug_outln_info( F("NPM Heater status = "), res == 0 ? F("Ok") : String(res));
+			debug_outln_info( F("NPM Heater status = "), res == 0 ? F("Ok") : String(res, BIN));
         }
 
         debug_outln_info( NPM_firmware_version());
