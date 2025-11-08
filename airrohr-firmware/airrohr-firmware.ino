@@ -3748,8 +3748,11 @@ static void webserver_status()
 		page_content += FPSTR(EMPTY_ROW);
 		add_table_row_from_value(page_content, FPSTR(SENSORS_NPM), String(F("Version: ")) + last_value_NPM_version);
 		add_table_row_from_value(page_content, F("Temperature offset: "), String(cfg::scd30_temp_correction) + String("°C"));
-        add_table_row_from_value(page_content, FPSTR(INTL_NPM_FULLTIME), cfg::npm_fulltime ? F("Enabled") : F("Disabled"));
-		add_table_row_from_value(page_content, FPSTR(INTL_NPM_HEATER_MODE), NPM_HEATER_MODE_NAME[cfg::npm_heater_mode] + Is_Heater_ModeOn ? F(" ON") : F(" OFF"));
+		add_table_row_from_value(page_content, FPSTR(INTL_NPM_FULLTIME), cfg::npm_fulltime ? F("Enabled") : F("Disabled"));
+		add_table_row_from_value(page_content, FPSTR(INTL_NPM_HEATER_MODE), NPM_HEATER_MODE_NAME[cfg::npm_heater_mode] + 
+									((NPM_HEATER_MODE)cfg::npm_heater_mode != NPM_HEATER_MODE::HEATING_CONTROL) ? F("") 
+																												: Is_Heater_ModeOn ? F(" ON") 
+																														   		   : F(" OFF"));
 	}
 
 	if (cfg::scd30_read)
