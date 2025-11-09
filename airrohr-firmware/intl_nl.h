@@ -27,6 +27,9 @@ const char INTL_PMS[] PROGMEM = "Plantower PMS(1,3,5,6,7)003 ({pm})";
 const char INTL_HPM[] PROGMEM = "Honeywell PM ({pm})";
 const char INTL_NPM[] PROGMEM = "Tera Sensor Next PM ({pm})";
 const char INTL_NPM_FULLTIME[] PROGMEM = "Next PM fulltime";
+const char INTL_NPM_FULLTIME[] PROGMEM = "Fan aan";
+#define INTL_NPM_HEATER_MODE "Verwarmings Mode"                          //const char INTL_NPM_HEATER_MODE[] PROGMEM = "Heater Mode";
+#define INTL_NPM_HEATER_ELEMENT  "verwarming "                           // use in web_status page.
 const char INTL_IPS[] PROGMEM = "Piera Systems IPS-7100 ({pm})";
 const char INTL_SEN5X[] PROGMEM = "Sensirion SEN5X ({pm}, {t}, {h}, {voc}, {nox})";
 const char INTL_SPS30[] PROGMEM = "Sensirion SPS30 ({pm})";
@@ -112,6 +115,8 @@ const char INTL_DEVICE_STATUS[] PROGMEM = "Apparaatstatus";
 const char INTL_SAVE_AND_RESTART[] PROGMEM = "Opslaan en herstarten";
 #define INTL_FIRMWARE "Firmware-versie"
 const char INTL_DEBUG_SETTING_TO[] PROGMEM = "Debugniveau naar ";
+#define INTL_ON "Aan"
+#define INTL_OFF "UIt"
 #define INTL_NONE "Uit"
 #define INTL_ERROR "enkel foutmeldingen"
 #define INTL_WARNING "waarschuwingen"
@@ -166,4 +171,4 @@ const char INTL_SENSORCOMMUNITY[] PROGMEM = "Sensor Community:";
 
 #define INTL_ENABLE_RCWL_0516 "Radar Motion aan (after enable reboot and insert server credentials)"
 
-#define INTL_MODE "Mode"
+

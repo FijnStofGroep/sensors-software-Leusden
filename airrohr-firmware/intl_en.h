@@ -27,7 +27,8 @@ const char INTL_PMS[] PROGMEM = "Plantower PMS(1,3,5,6,7)003 ({pm})";
 const char INTL_HPM[] PROGMEM = "Honeywell PM ({pm})";
 const char INTL_NPM[] PROGMEM = "Tera Sensor NextPM ({pm})";
 const char INTL_NPM_FULLTIME[] PROGMEM = "Fan always on";
-#define INTL_NPM_HEATER_MODE "Heater Mode"      //const char INTL_NPM_HEATER_MODE[] PROGMEM = "Heater Mode";
+#define INTL_NPM_HEATER_MODE "Heater Mode"                           //const char INTL_NPM_HEATER_MODE[] PROGMEM = "Heater Mode";
+#define INTL_NPM_HEATER_ELEMENT  "Heater "                           // use in web_status page.
 const char INTL_IPS[] PROGMEM = "Piera Systems IPS-7100 ({pm})";
 const char INTL_SEN5X[] PROGMEM = "Sensirion SEN5X ({pm}, {t}, {h}, {voc}, {nox})";
 const char INTL_SPS30[] PROGMEM = "Sensirion SPS30 ({pm})";
@@ -113,6 +114,8 @@ const char INTL_DEVICE_STATUS[] PROGMEM = "Device status";
 const char INTL_SAVE_AND_RESTART[] PROGMEM = "Save configuration and restart";
 #define INTL_FIRMWARE "Firmware version"
 const char INTL_DEBUG_SETTING_TO[] PROGMEM = "Set debug level to";
+#define INTL_ON "On"
+#define INTL_OFF "Off"
 #define INTL_NONE "off"
 #define INTL_ERROR "only errors"
 #define INTL_WARNING "warnings"
@@ -122,6 +125,7 @@ const char INTL_DEBUG_SETTING_TO[] PROGMEM = "Set debug level to";
 #define INTL_CONFIG_DELETED "Configuration was deleted"
 #define INTL_CONFIG_CAN_NOT_BE_DELETED "Configuration can not be deleted"
 #define INTL_CONFIG_NOT_FOUND "Configuration not found"
+
 const char INTL_TIME_TO_FIRST_MEASUREMENT[] PROGMEM = "Still {v} seconds until first measurement.";
 const char INTL_TIME_SINCE_LAST_MEASUREMENT[] PROGMEM = " seconds since last measurement.";
 const char INTL_PARTICLES_PER_LITER[] PROGMEM = "particles/liter";
@@ -166,4 +170,3 @@ const char INTL_SENSORCOMMUNITY[] PROGMEM = "Sensor Community:";
 
 #define INTL_ENABLE_RCWL_0516 "Enable Radar Motion (after enable reboot and insert server credentials)"
 
-#define INTL_MODE "Mode"

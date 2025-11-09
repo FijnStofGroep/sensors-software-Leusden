@@ -27,6 +27,7 @@ const char INTL_HPM[] PROGMEM = "Honeywell PM ({pm})";
 const char INTL_NPM[] PROGMEM = "Tera Sensor Next PM ({pm})";
 const char INTL_NPM_FULLTIME[] PROGMEM = "Lüfter immer an";
 #define INTL_NPM_HEATER_MODE "Heizungsmodus"
+#define INTL_NPM_HEATER_ELEMENT  "Heizung "
 const char INTL_IPS[] PROGMEM = "Piera Systems IPS-7100 ({pm})";
 const char INTL_SEN5X[] PROGMEM = "Sensirion SEN5X ({pm}, {t}, {h}, {voc}, {nox})";
 const char INTL_SPS30[] PROGMEM = "Sensirion SPS30 ({pm})";
@@ -114,6 +115,8 @@ const char INTL_DEVICE_STATUS[] PROGMEM = "Gerätestatus";
 const char INTL_SAVE_AND_RESTART[] PROGMEM = "Speichern und neu starten";
 #define INTL_FIRMWARE "Firmware"
 const char INTL_DEBUG_SETTING_TO[] PROGMEM = "Setze Debug auf";
+#define INTL_ON "An"
+#define INTL_OFF "Aus"
 #define INTL_NONE "Keine"
 #define INTL_ERROR "Fehler"
 #define INTL_WARNING "Warnungen"
@@ -123,6 +126,7 @@ const char INTL_DEBUG_SETTING_TO[] PROGMEM = "Setze Debug auf";
 #define INTL_CONFIG_DELETED "Config.json gelöscht"
 #define INTL_CONFIG_CAN_NOT_BE_DELETED "Config.json konnte nicht gelöscht werden"
 #define INTL_CONFIG_NOT_FOUND "Config.json nicht gefunden"
+
 const char INTL_TIME_TO_FIRST_MEASUREMENT[] PROGMEM = "Noch {v} Sekunden bis zur ersten Messung.";
 const char INTL_TIME_SINCE_LAST_MEASUREMENT[] PROGMEM = " Sekunden seit der letzten Messung.";
 const char INTL_PARTICLES_PER_LITER[] PROGMEM = "Partikel/Liter";
@@ -168,5 +172,4 @@ const char INTL_SENSORCOMMUNITY[] PROGMEM = "Sensor Community:";
 
 #define INTL_ENABLE_RCWL_0516 "Enable Radar Motion (after enable reboot and insert server credentials)"
 
-#define INTL_MODE "Mode"
 

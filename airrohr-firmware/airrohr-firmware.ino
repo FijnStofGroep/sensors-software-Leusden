@@ -113,11 +113,11 @@
  * RAM:     [=====     ]  46.8% (used 38300 bytes from 81920 bytes)		*
  * PROGRAM: [======    ]  63.5% (used 662821 bytes from 1044464 bytes)	*
  *                                                                      *
- * latest build 2025-10-20												*
+ * latest build 2025-11-09												*
  * PLATFORM: Espressif 8266 (3.0.1) > NodeMCU 1.0 (ESP-12E Module)		*
  * HARDWARE: ESP8266 160MHz, 80KB RAM, 4MB Flash						*
  * RAM:     [=====     ]  46.9% (used 38412 bytes from 81920 bytes)		*
- * PROGRAM: [======    ]  63.6% (used 664557 bytes from 1044464 bytes)	*
+ * PROGRAM: [=======   ]  63.6% (used 664645 bytes from 1044464 bytes)	*
  ************************************************************************/
 
 // VS: Convert Arduino file to C++ manually.
@@ -3749,10 +3749,9 @@ static void webserver_status()
 		add_table_row_from_value(page_content, FPSTR(SENSORS_NPM), String(F("Version: ")) + last_value_NPM_version);
 		add_table_row_from_value(page_content, F("Temperature offset: "), String(cfg::scd30_temp_correction) + String("°C"));
 		add_table_row_from_value(page_content, FPSTR(INTL_NPM_FULLTIME), cfg::npm_fulltime ? F("Enabled") : F("Disabled"));
-		add_table_row_from_value(page_content, FPSTR(INTL_NPM_HEATER_MODE), NPM_HEATER_MODE_NAME[cfg::npm_heater_mode] + 
-									((NPM_HEATER_MODE)cfg::npm_heater_mode != NPM_HEATER_MODE::HEATING_CONTROL) ? F("") 
-																												: Is_Heater_ModeOn ? F(" ON") 
-																														   		   : F(" OFF"));
+		add_table_row_from_value(page_content, FPSTR(INTL_NPM_HEATER_MODE), ((NPM_HEATER_MODE)cfg::npm_heater_mode != NPM_HEATER_MODE::HEATING_CONTROL ? NPM_HEATER_MODE_NAME[cfg::npm_heater_mode] 
+																																					   : String(FPSTR(INTL_NPM_HEATER_ELEMENT)) + (Is_Heater_ModeOn ? String(FPSTR(INTL_ON))
+																																																					: String(FPSTR(INTL_OFF)))) );
 	}
 
 	if (cfg::scd30_read)
