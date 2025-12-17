@@ -129,10 +129,10 @@
 // increment on change.
 #if defined(VS_DEBUG)
 // Debug / Beta version:
- #define SOFTWARE_VERSION_STR "FWL-2025-10-B6"
+ #define SOFTWARE_VERSION_STR "FWL-2025-10-B7"
 #else
 // Production / Release version:
- #define SOFTWARE_VERSION_STR "FWL-2025-10-P7"
+ #define SOFTWARE_VERSION_STR "FWL-2025-10-P8"
 #endif
 
 String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
@@ -1725,7 +1725,7 @@ uint NPM_Set_Heater_Mode(NPM_HEATER_MODE heaterMode)
 	uint8_t sndbuf[cmd_len];
 
 #if defined(VS_DEBUG)
-	debug_outln( F("Set_Heater_Mode(): para = "), String(heaterMode), DEBUG_MAX_INFO);
+	debug_outln( F("Set_Heater_Mode(): para = ") + String(heaterMode), DEBUG_MAX_INFO);
 #endif
 
 	switch (heaterMode)
@@ -4083,7 +4083,7 @@ static void webserver_reset()
  *****************************************************************/
 static void webserver_data_json()
 {
-	String s1;
+	RESERVE_STRING(s1, LARGE_STR);		//String s1;
 	unsigned long age = 0;
 
 	debug_outln_info(F("ws: data json..."));
@@ -4104,6 +4104,20 @@ static void webserver_data_json()
 	else
 	{
 		s1 = last_data_string;
+
+		if (cfg::sen5x_read && !is_Sen5x_init_failed)
+		{// Add VOC index to sensor data.json string.
+			s1.remove(s1.length() - 2);	// remove "]}"
+			s1 += ',';
+
+			s1.replace(F("_co2_ppm"), F("_NOx"));
+			//add_Value2Json(s1, FPSTR((String(SENSORS_SEN55) + F("_NOx")).c_str()), FPSTR(DBG_TXT_NOX), last_value_SEN5X_NOX);
+			add_Value2Json(s1, FPSTR((String(SENSORS_SEN55) + F("_VOC")).c_str()), FPSTR(DBG_TXT_VOC), last_value_SEN5X_VOC);
+
+			s1.remove(s1.length() - 1);				// remove ','
+			s1 += "]}";								// set JSON end chars.
+		}
+
 		age = msSince(starttime);
 		
 		if (age > cfg::sending_intervall_ms)
@@ -4125,7 +4139,10 @@ static void webserver_data_json()
 static void webserver_metrics_endpoint()
 {
 	debug_outln_info(F("ws: /metrics"));
+
 	RESERVE_STRING(page_content, XLARGE_STR);
+	RESERVE_STRING(data_sensemap, LARGE_STR);
+
 	page_content = F("software_version{version=\"" SOFTWARE_VERSION_STR "\",$i} 1\nuptime_ms{$i} $u\nsending_intervall_ms{$i} $s\nnumber_of_measurements{$i} $c\n");
 	String id(F("node=\"" SENSOR_BASENAME));
 	id += esp_chipid;
@@ -4136,7 +4153,22 @@ static void webserver_metrics_endpoint()
 	page_content.replace("$c", String(count_sends));
 	DynamicJsonDocument json2data(JSON_BUFFER_SIZE);
 
-	DeserializationError err = deserializeJson(json2data, last_data_string);
+	data_sensemap = last_data_string;
+
+	if (cfg::sen5x_read && !is_Sen5x_init_failed)
+	{// Add VOC index to sensor page_content string.
+		data_sensemap.remove(data_sensemap.length() - 2); // remove "]}"
+		data_sensemap += ',';
+
+		data_sensemap.replace(F("_co2_ppm"), F("_NOx"));
+		// add_Value2Json(s1, FPSTR((String(SENSORS_SEN55) + F("_NOx")).c_str()), FPSTR(DBG_TXT_NOX), last_value_SEN5X_NOX);
+		add_Value2Json(data_sensemap, FPSTR((String(SENSORS_SEN55) + F("_VOC")).c_str()), FPSTR(DBG_TXT_VOC), last_value_SEN5X_VOC);
+
+		data_sensemap.remove(data_sensemap.length() - 1);	// remove ','
+		data_sensemap += "]}";								// set JSON end chars.
+	}
+
+	DeserializationError err = deserializeJson(json2data, data_sensemap);
 
 	if (!err)
 	{
@@ -6424,8 +6456,8 @@ static void fetchSensorSEN5X(String &s)
 	add_Value2Json(s, FPSTR((result_SEN5X + F("N10")).c_str()), F("NC10: "), last_value_SEN5X_N10);
 	add_Value2Json(s, FPSTR((result_SEN5X + F("TS")).c_str()),  F("TPS: "), last_value_SEN5X_TS);
 
-	debug_outln_info( FPSTR((result_SEN5X + " read counter: ").c_str()), String(SEN5X_read_counter));
-	debug_outln_info( FPSTR((result_SEN5X + " read error counter: ").c_str()), String(SEN5X_read_error_counter));
+	debug_outln_info( FPSTR((result_SEN5X + "read counter: ").c_str()), String(SEN5X_read_counter));
+	debug_outln_info( FPSTR((result_SEN5X + "read error counter: ").c_str()), String(SEN5X_read_error_counter));
 
 	SEN5X_read_counter = 0;
 	SEN5X_read_error_counter = 0;
@@ -6486,9 +6518,11 @@ static void fetchSensorSEN5X_THN(String &s,  bool flg_Nox = true, bool flg_clear
 		}
 
 	// sensor community server can't handle this ID, (server response code = 400)
+	// only VOC value debugline.
 	// if (memcmp(cfg::sen5x_sym_pm, SENSOR_SEN55, 6) == 0)
 	// {
-	// 	add_Value2Json(s, FPSTR((result_SEN5X + F("VOC")).c_str()), F("VOC: "), last_value_SEN5X_VOC);
+	// 	add_Value2Json(s, FPSTR((result_SEN5X + F("VOC")).c_str()), FPSTR(DBG_TXT_VOC), last_value_SEN5X_VOC);
+		debug_outln_info( FPSTR(DBG_TXT_VOC), last_value_SEN5X_VOC);
 	// }
 
 		debug_outln_verbose(FPSTR(DBG_TXT_END_READING), result_SEN5X);
@@ -8846,6 +8880,7 @@ static unsigned long sendDataToOptionalApis(const String &data)
 		}
 
 		sum_send_time += millis() - starttime_MQTT;				//  micros() - starttime_MQTT;
+
 	}
 #endif
 
