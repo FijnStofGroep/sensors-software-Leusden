@@ -8866,7 +8866,7 @@ static unsigned long sendDataToOptionalApis(const String &data)
 			data_sensemap.remove(data_sensemap.length() - 2);	// remove "]}"
 			data_sensemap += ',';
 
-			add_Value2Json(data_sensemap, FPSTR((String(F("SEN5X_")) + F("VOC")).c_str()), F("\nVOC: "), last_value_SEN5X_VOC);
+			add_Value2Json(data_sensemap, FPSTR((String(F("SEN5X_")) + F("VOC")).c_str()), FPSTR((String(F("\n") + String(DBG_TXT_VOC))).c_str()), last_value_SEN5X_VOC);
 
 			data_sensemap.remove(data_sensemap.length() - 1);	// remove ','
 			data_sensemap += "]}";								// set JSON end chars.
