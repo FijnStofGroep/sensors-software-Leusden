@@ -6889,10 +6889,10 @@ static void GetSen5XSensorData()
 			value_SEN5X_VOC += vocIndex;
 			value_SEN5X_NOX += noxIndex;
 
-			debug_outln_verbose(F("Temp (sec.): "), String(ambientTemperature));
-			debug_outln_verbose(F("Hum (sec.): "),  String(ambientHumidity));
-			debug_outln_verbose(F("NOx (index): "), String(noxIndex));
-			debug_outln_verbose(F("VOC (index): "), String(vocIndex));
+			debug_outln_verbose(F("Temp: "), String(ambientTemperature));
+			debug_outln_verbose(F("Hum: "),  String(ambientHumidity));
+			debug_outln_verbose(F("VOC: "), String(vocIndex));
+			debug_outln_verbose(F("NOx: "), String(noxIndex));
 		}
 
 		SEN5X_measurement_count++;
