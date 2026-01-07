@@ -24,7 +24,9 @@ ICACHE_RAM_ATTR void MotionSensorChangeEvent()
 
   RCWL0516.m_queue->Enqueue(motionValue);
 
-  //debug_outln_verbose(F("MotionSensorChangeEvent()::Radar Motion/Sensor value: "), String(motionValue));
+#if VS_DEBUG
+  debug_outln_info(F("MotionSensorChangeEvent()::Radar Motion/Sensor value: "), String(motionValue));
+#endif
 }
 
 //**********************************************************************************************************************************
@@ -50,6 +52,10 @@ bool RCWL_0516::init(unsigned Wait_max_time, int motionSensorID)
 
   // Create a Queue[] array of 10 radar events could be stored on the heap.
   m_queue = new Queue(10);
+
+#if VS_DEBUG
+  debug_outln_info(F("init()::Radar Motion/Sensor, Wait Time: "), String(Wait_max_time));
+#endif
 
   return true;
 }
@@ -93,6 +99,11 @@ bool RCWL_0516::begin(const char *serverHost, uint port)
 
   // digitalWrite(led, LEDLOW);
 
+  
+#if VS_DEBUG
+  debug_outln_info(F("begin()::Radar Motion/Sensor, serverHost: "), String(serverHost));
+#endif
+
   return m_Active;
 }
 
@@ -123,6 +134,7 @@ bool RCWL_0516::setMQTTClient(PubSubClient& mqttclient, String _header, String _
 
 /*
  * Radar Motion - Message loop()
+ *  - Called every 100 msec.
  */
 void RCWL_0516::loop()
 {
@@ -130,7 +142,9 @@ void RCWL_0516::loop()
   {
     int motionValue = RCWL0516.m_queue->Dequeue();
 
-    // debug_outln_verbose(F("loop()::Radar Motion-Sensor value: "), String(motionValue));
+#if VS_DEBUG
+    debug_outln_info(F("loop()::Radar Motion-Sensor value: "), String(motionValue));
+#endif
 
     if (m_Wait_until_max_time_provided == 0)
     { // send all motion value to a external device.
@@ -218,13 +232,13 @@ unsigned long RCWL_0516::GetMotionCount()
 */
 void RCWL_0516::sendMotionValue(int motionValue)
 {
-      time_t now = time(nullptr);       // Get time stamp.
+      time_t motionTimeStamp = time(nullptr);       // Get time stamp.
 
       // Send Radar value to Server.
-      SendToServer(motionValue, now);
+      SendToServer(motionValue, motionTimeStamp);
 
       // Send Radar value to MQTT broker.
-      sendMQTT(motionValue, now);
+      sendMQTT(motionValue, motionTimeStamp);
 
       count_RadarMotion++;
 }
@@ -235,7 +249,7 @@ void RCWL_0516::sendMotionValue(int motionValue)
 ///
 /// @param val 
 /// @param now => current time value.
-void RCWL_0516::SendToServer(int val, time_t now)
+void RCWL_0516::SendToServer(int motionValue, time_t motionTimeStamp)
 {
   if(m_port == 0)
   {// No communication with a external Server.
@@ -244,10 +258,10 @@ void RCWL_0516::SendToServer(int val, time_t now)
 
   char time_buffer[10] = {0};
   struct tm *timeinfo;
-  timeinfo = localtime(&now);
+  timeinfo = localtime(&motionTimeStamp);
 
   strftime(time_buffer, 10, "%H:%M:%S", timeinfo);
-  String message = String(F("Time:")) + String(time_buffer) +  F(",Attention Time:") + String(m_currentwaitTime / 1000) + String(F(",Radar Motion value:")) + String(val);
+  String message = String(F("Time:")) + String(time_buffer) +  F(",Attention Time:") + String(m_currentwaitTime / 1000) + String(F(",Radar Motion value:")) + String(motionValue);
   debug_outln_verbose(F("SendToServer(), "), message);
 
   if (!m_Active)
@@ -299,14 +313,14 @@ void RCWL_0516::SendToServer(int val, time_t now)
 * send radar motion value to mqtt api                            *
 *                                                                *
 *****************************************************************/
-void RCWL_0516::sendMQTT(int val, time_t now)
+void RCWL_0516::sendMQTT(int motionValue, time_t motionTimeStamp)
 {
 	if ( this->mqtt_client != nullptr && this->mqtt_client->connected() )
 	{
       char time_buffer[10] = {0};
       char date_buffer[13] = {0};
       struct tm *timeinfo;
-      timeinfo = localtime(&now);
+      timeinfo = localtime(&motionTimeStamp);
       strftime(time_buffer, 10, "%H:%M:%S", timeinfo);
       strftime(date_buffer, 12, "%Y-%m-%d", timeinfo);
 
@@ -331,7 +345,7 @@ void RCWL_0516::sendMQTT(int val, time_t now)
 			payload_messages += "\",\"";                          // field seperator char.
 			payload_messages += F("Value");
 			payload_messages += "\":\"";
-			payload_messages += String(val);                      // String( val == 2 ? 1 : val);
+			payload_messages += String(motionValue);             // String( val == 2 ? 1 : motionValue);
       payload_messages += "\"}";
 
 			if( this->mqtt_client->publish( status_header.c_str(), payload_messages.c_str()))

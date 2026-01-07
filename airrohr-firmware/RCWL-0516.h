@@ -91,10 +91,10 @@ private:
   PubSubClient *mqtt_client;
 
   // private function methods
-  void SendToServer(int val, time_t now);
-  void sendMQTT(int val, time_t now);
   void sendMotionValue(int motionValue);
- 
+  void SendToServer(int motionValue, time_t motionTimeStamp);
+  void sendMQTT(int motionValue, time_t motionTimeStamp);
+
 };
 
 // external declaration of RCWL0516 instances.
