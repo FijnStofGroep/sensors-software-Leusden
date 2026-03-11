@@ -117,7 +117,7 @@
  * PLATFORM: Espressif 8266 (3.0.1) > NodeMCU 1.0 (ESP-12E Module)		*
  * HARDWARE: ESP8266 160MHz, 80KB RAM, 4MB Flash						*
  * RAM:     [=====     ]  46.9% (used 38412 bytes from 81920 bytes)		*
- * PROGRAM: [=======   ]  63.6% (used 664645 bytes from 1044464 bytes)	*
+ * PROGRAM: [=======   ]  63.7% (used 665253 bytes from 1044464 bytes)	*
  ************************************************************************/
 
 // VS: Convert Arduino file to C++ manually.
@@ -4367,10 +4367,10 @@ static void setup_mqtt_broker(const char *host, const int port)
 // }
 
 /************************************************************************************
- *	select Channel For App.															*
+ *	select Channel For Access Point (AP).											*
  *	return channel nr: 1 or 6 or 11													*
 *************************************************************************************/
-static int selectChannelForAp()
+static int selectChannelForAP()
 {
 	std::array<int, 14> channels_rssi;
 	std::fill(channels_rssi.begin(), channels_rssi.end(), -100);
@@ -4468,7 +4468,7 @@ static void wifiConfig()
 						default_ip_fourth_octet);
 		
 	WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-	WiFi.softAP(cfg::fs_ssid, cfg::fs_pwd, selectChannelForAp());
+	WiFi.softAP(cfg::fs_ssid, cfg::fs_pwd, selectChannelForAP());
 
 	// In case we create a unique password at first start
 	debug_outln_info(F("AP Password is: "), cfg::fs_pwd);
