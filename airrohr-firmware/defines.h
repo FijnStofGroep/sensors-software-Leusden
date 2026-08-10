@@ -12,7 +12,7 @@
 #define SENSOR_BASENAME "esp8266-"
 #define OTA_BASENAME    "air.fijnstofleusden.nl"
 
-#define MY_TZ "CET-1CEST,M3.5.0/02,M10.5.0/03"  // Europe/Amsterdam, see Timezone: https://leo.leung.xyz/wiki/Timezone
+#define EU_TIMEZONE "CET-1CEST,M3.5.0/02,M10.5.0/03"  // Europe/Amsterdam, see Timezone: https://leo.leung.xyz/wiki/Timezone
 #endif
 
 #if defined(ESP32)
@@ -39,6 +39,8 @@
 #define LEN_HEIGHT_ABOVE_SEALEVEL 8
 
 #define LEN_SENSEBOXID 30
+#define LEN_OSEM_DEVICE_API_KEY 50
+#define LEN_OSEM_ALTERNATE_HOST 50
 
 #define LEN_HOST_INFLUX 100         
 #define LEN_URL_INFLUX 100

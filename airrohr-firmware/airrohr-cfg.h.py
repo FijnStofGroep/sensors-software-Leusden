@@ -68,6 +68,8 @@ Time		sending_intervall_ms
 Time		time_for_wifi_config
 Bool		powersave
 String		senseboxid
+String		osem_device_api_key
+String		osem_alternate_host
 Bool		send2custom
 String		host_custom
 String		url_custom

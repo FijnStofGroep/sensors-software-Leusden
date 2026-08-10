@@ -103,6 +103,8 @@ enum ConfigShapeId {
 	Config_time_for_wifi_config,
 	Config_powersave,
 	Config_senseboxid,
+	Config_osem_device_api_key,
+	Config_osem_alternate_host,
 	Config_send2custom,
 	Config_host_custom,
 	Config_url_custom,
@@ -202,6 +204,8 @@ static constexpr char CFG_KEY_SENDING_INTERVALL_MS[] PROGMEM = "sending_interval
 static constexpr char CFG_KEY_TIME_FOR_WIFI_CONFIG[] PROGMEM = "time_for_wifi_config";
 static constexpr char CFG_KEY_POWERSAVE[] PROGMEM = "powersave";
 static constexpr char CFG_KEY_SENSEBOXID[] PROGMEM = "senseboxid";
+static constexpr char CFG_KEY_OSEM_DEVICE_API_KEY[] PROGMEM = "osem_device_api_key";
+static constexpr char CFG_KEY_OSEM_ALTERNATE_HOST[] PROGMEM = "osem_alternate_host";
 static constexpr char CFG_KEY_SEND2CUSTOM[] PROGMEM = "send2custom";
 static constexpr char CFG_KEY_HOST_CUSTOM[] PROGMEM = "host_custom";
 static constexpr char CFG_KEY_URL_CUSTOM[] PROGMEM = "url_custom";
@@ -301,6 +305,8 @@ static constexpr ConfigShapeEntry configShape[] PROGMEM = {
 	{ Config_Type_Time, 0, CFG_KEY_TIME_FOR_WIFI_CONFIG, &cfg::time_for_wifi_config },
 	{ Config_Type_Bool, 0, CFG_KEY_POWERSAVE, &cfg::powersave },
 	{ Config_Type_String, sizeof(cfg::senseboxid)-1, CFG_KEY_SENSEBOXID, cfg::senseboxid },
+	{ Config_Type_String, sizeof(cfg::osem_device_api_key)-1, CFG_KEY_OSEM_DEVICE_API_KEY, cfg::osem_device_api_key },
+	{ Config_Type_String, sizeof(cfg::osem_alternate_host)-1, CFG_KEY_OSEM_ALTERNATE_HOST, cfg::osem_alternate_host },
 	{ Config_Type_Bool, 0, CFG_KEY_SEND2CUSTOM, &cfg::send2custom },
 	{ Config_Type_String, sizeof(cfg::host_custom)-1, CFG_KEY_HOST_CUSTOM, cfg::host_custom },
 	{ Config_Type_String, sizeof(cfg::url_custom)-1, CFG_KEY_URL_CUSTOM, cfg::url_custom },

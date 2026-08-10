@@ -8,7 +8,7 @@
  *  airRohr firmware:                                                   *
  *    Copyright (C) 2016-2021  Code for Stuttgart a.o.                  *
  *    Copyright (C) 2019-2020  Dirk Mueller                             *
- *    Copyright (C) 2022-2025  R.Dieperink                              *
+ *    Copyright (C) 2022-2026  Roel Dieperink                           *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -78,6 +78,16 @@
  *    generated is dependent on the "measured Relative Humidity".       *
  *    Heater is disabled below 60%RH.                                   *
  * 																		*
+ * 2026-08-09	FWL-2026-08-P1											*
+ * - Sensor.Community devices are now able to contribute to the newly   *
+ *   developed openSenseMap that will become widely available on:       *
+ *   URL: https://staging.opensensemap.org (let’s call it “new OSEM”)   *
+ * - In webpage of Device go to Configuration and APIs tab:				*
+ *   - Add next sensor configurations:                                  *
+ * 		• the new box / device ID                                       *
+ * 		• the box / device API key                                      *
+ * 		• alternative upload URL: (upload.staging.opensensemap.org)     *
+ * 																		*
  * ---------------------------------------------------------------------*
  * Note:                                                                *
  * There is a hardware WDT and a software WDT.							*
@@ -132,7 +142,7 @@
  #define SOFTWARE_VERSION_STR "FWL-2025-10-B7"
 #else
 // Production / Release version:
- #define SOFTWARE_VERSION_STR "FWL-2025-10-P8"
+ #define SOFTWARE_VERSION_STR "FWL-2026-08-P1"
 #endif
 
 String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
@@ -342,6 +352,8 @@ namespace cfg
 	bool ssl_madavi = SSL_MADAVI;
 	bool ssl_dusti = SSL_SENSORCOMMUNITY;
 	char senseboxid[LEN_SENSEBOXID] = SENSEBOXID;
+	char osem_device_api_key[LEN_OSEM_DEVICE_API_KEY] = OSEM_DEVICE_API_KEY;
+	char osem_alternate_host[LEN_OSEM_ALTERNATE_HOST] = OSEM_ALTERNATE_HOST;
 
 	char host_influx[LEN_HOST_INFLUX];
 	char url_influx[LEN_URL_INFLUX];
@@ -884,7 +896,7 @@ unsigned long WiFi_error_count;
 unsigned long last_page_load = millis();
 
 bool wificonfig_loop = false;
-uint8_t sntp_time_set = 0;
+uint16_t sntp_time_set = 0;
 
 unsigned long count_sends = 0;
 unsigned long last_display_millis = 0;
@@ -2878,6 +2890,7 @@ static void webserver_config_send_body_get(String &page_content)
 	add_form_checkbox(Config_has_lcd2004, FPSTR(INTL_LCD2004_3F));
 	add_form_checkbox(Config_display_wifi_info, FPSTR(INTL_DISPLAY_WIFI_INFO));
 	add_form_checkbox(Config_display_device_info, FPSTR(INTL_DISPLAY_DEVICE_INFO));
+
 	//page_content += FPSTR(WEB_BR_LF);
 	server.sendContent(page_content);
 
@@ -2900,6 +2913,9 @@ static void webserver_config_send_body_get(String &page_content)
 
 	page_content += FPSTR(WEB_BR_LF);
 	add_form_checkbox(Config_auto_update, FPSTR(INTL_AUTO_UPDATE));
+	#if defined(VS_DEBUG)
+		add_form_checkbox(Config_use_beta, FPSTR(INTL_USE_BETA));
+	#endif
 	page_content += FPSTR(BR_TAG);
 
 	add_form_checkbox(Config_powersave, FPSTR(INTL_POWERSAVE));
@@ -2937,6 +2953,7 @@ static void webserver_config_send_body_get(String &page_content)
 
 	// Paginate page after ~ 1500 Bytes
 	server.sendContent(page_content);
+
 	page_content = emptyString;
 	add_form_checkbox_sensor(Config_pms_read, FPSTR(INTL_PMS));
 	add_form_checkbox_sensor(Config_npm_read, FPSTR(INTL_NPM));
@@ -2969,6 +2986,7 @@ static void webserver_config_send_body_get(String &page_content)
 
     // Paginate page after ~ 1500 Bytes
 	server.sendContent(page_content);
+
 	page_content = emptyString;
 	page_content += FPSTR(WEB_BR_LF);
 	add_form_checkbox_sensor(Config_dnms_read, FPSTR(INTL_DNMS));
@@ -2993,7 +3011,6 @@ static void webserver_config_send_body_get(String &page_content)
 	add_form_checkbox_sensor(Config_htu21d_read, FPSTR(INTL_HTU21D));
 	add_form_checkbox_sensor(Config_sht3x_read, FPSTR(INTL_SHT3X));
 
-
 	// Paginate page after ~ 1500 Bytes
 	server.sendContent(page_content);
 
@@ -3015,8 +3032,11 @@ static void webserver_config_send_body_get(String &page_content)
 	add_form_checkbox(Config_send2sensemap, FPSTR(WEB_OPENSENSEMAP));
 	page_content += FPSTR(TABLE_TAG_OPEN);
 	add_form_input(page_content, Config_senseboxid, F("senseBox&nbsp;ID"), LEN_SENSEBOXID - 1);
+	add_form_input(page_content, Config_osem_device_api_key, F("openSenseMap&nbsp;device&nbsp;API&nbsp;key"), LEN_OSEM_DEVICE_API_KEY - 1);
+	add_form_input(page_content, Config_osem_alternate_host, F("openSenseMap&nbsp;alternative&nbsp;host&nbsp;url"), LEN_OSEM_ALTERNATE_HOST - 1);
 
 	server.sendContent(page_content);
+
 	page_content = FPSTR(TABLE_TAG_CLOSE_BR);
 	page_content += FPSTR(BR_TAG);
 	page_content += F("<hr/>");
@@ -3026,6 +3046,7 @@ static void webserver_config_send_body_get(String &page_content)
 	page_content += FPSTR(WEB_BRACE_BR);
 
 	server.sendContent(page_content);
+
 	page_content = FPSTR(TABLE_TAG_OPEN);
 	add_form_input(page_content, Config_host_custom, FPSTR(INTL_SERVER), LEN_HOST_CUSTOM - 1);
 	add_form_input(page_content, Config_url_custom, FPSTR(INTL_PATH), LEN_URL_CUSTOM - 1);
@@ -3054,6 +3075,7 @@ static void webserver_config_send_body_get(String &page_content)
 	page_content += FPSTR(TABLE_TAG_CLOSE_BR);
 	page_content += FPSTR(BR_TAG);
 	page_content += F("<hr/>");
+
 	server.sendContent(page_content);
 	// End MQTT
 
@@ -3239,6 +3261,7 @@ static void sensor_restart()
 	debug_outln_info(F("Restart."));
 	delay(500);
 
+	// Restart ESP from zero, to avoid memory leak and other issues.
 	ESP.restart();
 
 	// should not be reached, forever loop.
@@ -4878,11 +4901,16 @@ static unsigned long sendData(const LoggerEntry logger, const String &data, cons
 		http.addHeader(F("X-MAC-ID"), String(F(SENSOR_BASENAME)) + esp_mac_id);
 
 		if (pin)
-		{
+		{// add PIN to header => required for sending data to "sensor.community" server.
 			http.addHeader(F("X-PIN"), String(pin));
 		}
 
-		// POST sensor data to sensor.community server.
+		if (logger == LoggerEntry::LoggerSensemap && cfg::send2sensemap && (*cfg::osem_device_api_key))
+		{// OpenSenseMap API key in header => required for sending data to Alternate "opensensemap.org" Host.
+			http.addHeader(F("x-osem-device-api-key"), String(cfg::osem_device_api_key));
+		}
+
+		// POST sensor data to: sensor.community-, madavi-, opensensemap-, ... server.
 		result = http.POST(data);
 
 		if (result >= HTTP_CODE_OK && result <= HTTP_CODE_ALREADY_REPORTED)
@@ -7331,7 +7359,7 @@ static void StartTwoStageOTAUpdate()
 		return;
 	}
 
-	debug_outln_verbose(F("END, all firmware files are loaded.. "), FPSTR(FW_2ND_LOADER_URL));
+	debug_outln_verbose(F("END, all firmware files are loaded, include:  "), FPSTR(FW_2ND_LOADER_URL));
 
 	// SPIFFS is deprecated, we know
 #pragma GCC diagnostic push
@@ -7368,7 +7396,7 @@ static void StartTwoStageOTAUpdate()
 	StreamString loaderMD5;
 	if (!fwDownloadStream(client, String(FPSTR(FW_2ND_LOADER_URL)) + F(".md5"), &loaderMD5))
 	{
-		debug_outln_verbose(F("No loader.md5 file found on Update server."));
+		debug_outln_verbose(F("No \"loader.bin.md5\" file found on Update server."));
 		return;
 	}
 
@@ -8670,14 +8698,22 @@ static void logEnabledAPIs()
 	if (cfg::send2sensemap)
 	{
 		debug_outln_info(F("\tOpenSenseMap.org"));
+
+		if ( (*cfg::osem_alternate_host) )
+		{
+			debug_outln_info(F("\tAlternate Upload Host: "), String(cfg::osem_alternate_host));
+		}
 	}
 
-/*
 	if (cfg::auto_update)
 	{
 		debug_outln_info(F("Auto-Update active..."));
 	}
-*/
+
+	if (cfg::use_beta)
+	{
+		debug_outln_info(F("Beta-Update active..."));
+	}
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 
@@ -8704,11 +8740,14 @@ static void logEnabledDisplays()
 	}
 }
 
+/// @brief Setup NTP time synchronization.
+/// @note The NTP server names must be persisted after the call to configTime because internally the pointers
+///		  are stored see implementation of lwip sntp_setservername().
 static void setupNetworkTime()
 {
 	// server name ptrs must be persisted after the call to configTime because internally
 	// the pointers are stored see implementation of lwip sntp_setservername()
-	static char ntpServer1[18], ntpServer2[18];
+	static char ntpServer1[18], ntpServer2[18]; /*, ntpServer3[18];*/
 
 #if defined(ESP8266)
 	settimeofday_cb([]()						// optional: set callback function if time was sent from NTPSERVER.
@@ -8727,14 +8766,15 @@ static void setupNetworkTime()
 
 	strcpy_P(ntpServer1, NTP_SERVER_1);
 	strcpy_P(ntpServer2, NTP_SERVER_2);
+	//strcpy_P(ntpServer3, NTP_SERVER_3);				//
 
-	//configTime(0, 0, ntpServer1, ntpServer2);
-	configTime(MY_TZ, 0, ntpServer1, ntpServer2);	// set Daylight Saving => NTP with auto-switching between summer/winter time.
+	//configTime( 0, 0, ntpServer1, ntpServer2);		// timezone_sec => Time zone offset in seconds from UTC. For example, for UTC+2, set to 7200. For UTC-5, set to -18000.
+	configTime(EU_TIMEZONE, 0, ntpServer1, ntpServer2); // set Daylight Saving => NTP with auto-switching between summer/winter time.
 }
 
-/*
-	send sensor value to other web-server's to store sensor-data into databases.
-*/
+/// @brief Send data to optional APIs (Madavi, OpenSenseMap, Feinstaub-App, aircms, influxdb, custom API).
+/// @param data
+/// @return total time spent sending data to all APIs in milliseconds.
 static unsigned long sendDataToOptionalApis(const String &data)
 {
 	unsigned long sum_send_time = 0;
@@ -8764,24 +8804,40 @@ static unsigned long sendDataToOptionalApis(const String &data)
 	}
 
 	if (cfg::send2sensemap && (cfg::senseboxid[0] != '\0'))
-	{
-		String sensemap_path(tmpl(FPSTR(URL_SENSEMAP), cfg::senseboxid));
+	{ // OpenSenseMap API
+		String sensemap_path( tmpl(FPSTR(URL_SENSEMAP), cfg::senseboxid));
 
 		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("opensensemap: "));
 
 		if (cfg::sen5x_read && (!is_Sen5x_init_failed))
-		{ // OpenSenseMap
+		{
 			RESERVE_STRING(data_2_sensemap, LARGE_STR);
 			data_2_sensemap = data_sensemap;
 			data_2_sensemap.replace("signal", "wifi_signal");	// replace Wifi signal ID.
 
-			sum_send_time += sendData(LoggerSensemap, data_2_sensemap, 0, HOST_SENSEMAP, sensemap_path.c_str());
+			if ( (*cfg::osem_alternate_host) && (*cfg::osem_device_api_key) )
+			{
+				sum_send_time += sendData(LoggerSensemap, data_2_sensemap, 0, cfg::osem_alternate_host, sensemap_path.c_str());
+			}
+			else
+			{
+				sum_send_time += sendData(LoggerSensemap, data_2_sensemap, 0, HOST_SENSEMAP, sensemap_path.c_str());
+			}
 
 			debug_outln_verbose(F("opensensemap data: "), data_2_sensemap);
 		}
 		else
 		{
-			sum_send_time += sendData(LoggerSensemap, data, 0, HOST_SENSEMAP, sensemap_path.c_str());
+			if ( (*cfg::osem_alternate_host) && (*cfg::osem_device_api_key) )
+			{
+				sum_send_time += sendData(LoggerSensemap, data, 0, cfg::osem_alternate_host, sensemap_path.c_str());
+			}
+			else
+			{
+				sum_send_time += sendData(LoggerSensemap, data, 0, HOST_SENSEMAP, sensemap_path.c_str());
+			}
+
+			//debug_outln_verbose(F("opensensemap data: "), data);
 		}
 	}
 
@@ -8981,7 +9037,7 @@ void setup(void)
 #endif
 
 	init_display();
-	setupNetworkTime();			// set Callback function ptr into NTPSERVER function callback table.
+	setupNetworkTime();			// Init- and set Callback function to NTPSERVER to get UTC time values.
 	connectWifi();
 	setup_webserver();
 	createLoggerConfigs();
@@ -9423,7 +9479,7 @@ void loop(void)
 		yield();							// give waiting thread(s) CPU time.
 
 		debug_outln_verbose(FPSTR(DBG_TXT_SEP));
-		debug_outln_verbose( F("Raw Sensor Data format for other Api's:\n"), data);	// Raw print complete Json data string.
+		debug_outln_verbose( F("Raw Sensor Data format to other Api's:\n"), data);	// Raw print complete Json data string.
 		//Debug.println(data);				
 	
 		// send to Optional Api's:

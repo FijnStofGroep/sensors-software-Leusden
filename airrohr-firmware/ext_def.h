@@ -33,8 +33,11 @@ const char WWW_PASSWORD[] PROGMEM = "";
 
 // OpenSenseMap
 #define SENSEBOXID ""
+#define OSEM_DEVICE_API_KEY ""
+#define OSEM_ALTERNATE_HOST "upload.staging.opensensemap.org"
 
-enum LoggerEntry 
+/// @brief 
+enum LoggerEntry
 {
     LoggerSensorCommunity,
     LoggerMadavi,
@@ -92,8 +95,9 @@ static const char FW_DOWNLOAD_URL[] PROGMEM = "/firmware/update";
 
 static const char FW_2ND_LOADER_URL[] PROGMEM = "/firmware/update/loader-002.bin";
 
-static const char NTP_SERVER_1[] PROGMEM = "0.pool.ntp.org";    // NTP servers operate always in UTC time.
+static const char NTP_SERVER_1[] PROGMEM = "0.pool.ntp.org";                // NTP servers operate always in UTC time.
 static const char NTP_SERVER_2[] PROGMEM = "1.pool.ntp.org";
+//static const char NTP_SERVER_3[] PROGMEM = "2.pool.ntp.org";
 
 // define own API
 static const char HOST_CUSTOM[] PROGMEM = "192.168.234.1";
