@@ -16,13 +16,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
       - name: Load dependencies from cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -44,7 +44,7 @@ jobs:
         run: |
           tar czvf airrohr-firmware-builds.tar.gz -C airrohr-firmware/builds/ .
       - name: Store airrohr-firmware
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
           name: airrohr-firmware-builds
@@ -52,7 +52,7 @@ jobs:
           retention-days: 30
       - name: Store update-loader
         if: contains(github.ref_name,'esp32') == false
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           if-no-files-found: error
           name: airrohr-update-loader
