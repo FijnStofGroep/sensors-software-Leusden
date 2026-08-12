@@ -82,11 +82,12 @@
  * - Sensor.Community devices are now able to contribute to the newly   *
  *   developed openSenseMap that will become widely available on:       *
  *   URL: https://staging.opensensemap.org (let’s call it “new OSEM”)   *
- * - In webpage of Device go to Configuration and APIs tab:				*
- *   - Add next sensor configurations:                                  *
- * 		• the new box / device ID                                       *
- * 		• the box / device API key                                      *
- * 		• alternative upload URL: (upload.staging.opensensemap.org)     *
+ *   - In webpage of Device go to Configuration and APIs tab:			*
+ *     - Add next sensor configurations:                                *
+ * 		  • the new box / device ID                                     *
+ * 		  • the box / device API key                                    *
+ * 		  • alternative upload URL: (upload.staging.opensensemap.org)   *
+ * - MQTT Token in status message										*
  * 																		*
  * ---------------------------------------------------------------------*
  * Note:                                                                *
@@ -123,11 +124,17 @@
  * RAM:     [=====     ]  46.8% (used 38300 bytes from 81920 bytes)		*
  * PROGRAM: [======    ]  63.5% (used 662821 bytes from 1044464 bytes)	*
  *                                                                      *
- * latest build 2025-11-09												*
+ * build 2025-11-09														*
  * PLATFORM: Espressif 8266 (3.0.1) > NodeMCU 1.0 (ESP-12E Module)		*
  * HARDWARE: ESP8266 160MHz, 80KB RAM, 4MB Flash						*
  * RAM:     [=====     ]  46.9% (used 38412 bytes from 81920 bytes)		*
  * PROGRAM: [=======   ]  63.7% (used 665253 bytes from 1044464 bytes)	*
+ * 																		*
+ * latest build 2026-08-12	FWL-2026-08-P1								*
+ * PLATFORM: Espressif 8266 (3.0.1) > NodeMCU 1.0 (ESP-12E Module)		*
+ * HARDWARE: ESP8266 160MHz, 80KB RAM, 4MB Flash						*
+ * RAM:     [=====     ]  47.0% (used 38516 bytes from 81920 bytes)		*
+ * PROGRAM: [=======   ]  63.8% (used 665957 bytes from 1044464 bytes)	*
  ************************************************************************/
 
 // VS: Convert Arduino file to C++ manually.
@@ -386,7 +393,7 @@ namespace cfg
 	char mqtt_user[LEN_USER_INFLUX] = MQTT_USER;
 	char mqtt_pwd[LEN_PASS_INFLUX] = MQTT_PWD;
 	char mqtt_topic[LEN_MQTT_HEADER] = MQTT_TOPIC;
-
+	char mqtt_token[LEN_MQTT_TOKEN] = MQTT_TOKEN;
 #endif
 
 	// init: set default values to options.
@@ -2924,6 +2931,8 @@ static void webserver_config_send_body_get(String &page_content)
 	add_form_input(page_content, Config_debug, FPSTR(INTL_DEBUG_LEVEL), 1);
 	add_form_input(page_content, Config_sending_intervall_ms, FPSTR(INTL_MEASUREMENT_INTERVAL), 5);
 	add_form_input(page_content, Config_time_for_wifi_config, FPSTR(INTL_DURATION_ROUTER_MODE), 5);
+
+	add_form_input(page_content, Config_mqtt_token, FPSTR(INTL_MQTT_TOKEN), LEN_MQTT_TOKEN - 1);
 	page_content += FPSTR(TABLE_TAG_CLOSE_BR);
 
 	server.sendContent(page_content);
@@ -5044,6 +5053,13 @@ static void sendmqtt(const String &data)
 			status_header += "/status";
 
 			payload_status = "{\"";
+			if( *cfg::mqtt_token )
+			{// token is set => send token to server.
+				payload_status += FPSTR(INTL_TOKEN);
+				payload_status += "\":\"";
+				payload_status += cfg::mqtt_token;
+				payload_status += "\",\"";
+			}
 			payload_status += FPSTR(INTL_STATIC_IP);
 			payload_status += "\":\"";
 			payload_status += WiFi.localIP().toString();

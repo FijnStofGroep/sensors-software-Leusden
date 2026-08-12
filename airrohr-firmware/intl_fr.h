@@ -75,6 +75,8 @@ const char INTL_TOPIC[] PROGMEM = "Topic";
 const char INTL_ONLINE[] PROGMEM = "En ligne";
 const char INTL_OFFLINE[] PROGMEM = "Hors ligne";
 const char INTL_MQTT_STAT[] PROGMEM = "Statut";
+const char INTL_MQTT_TOKEN[] PROGMEM = "MQTT Token";
+const char INTL_TOKEN[] PROGMEM = "Token";
 
 const char INTL_SCD30_CO2_CORRECTION[] PROGMEM = "Valeur corrigée en  CO₂";
 

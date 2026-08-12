@@ -126,6 +126,8 @@ static const char SERVER_MQTT[]  PROGMEM = "192.168.1.202";
 #define MQTT_PWD ""
 #define MQTT_CLIENT_ID ""
 #define MQTT_TOPIC "airRohr"
+#define MQTT_TOKEN ""
+
 #define MQTT_LWT "LWT"
 #define MQTT_LWT_MESSAGE_OFF "Offline"
 #define MQTT_LWT_MESSAGE_ON "Online"

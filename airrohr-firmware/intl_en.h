@@ -80,6 +80,8 @@ const char INTL_TOPIC[] PROGMEM = "Topic";
 const char INTL_ONLINE[] PROGMEM = "Online";
 const char INTL_OFFLINE[] PROGMEM = "Offline";
 const char INTL_MQTT_STAT[] PROGMEM = "Status";
+const char INTL_MQTT_TOKEN[] PROGMEM = "MQTT Token";
+const char INTL_TOKEN[] PROGMEM = "Token";
 
 const char INTL_DEBUG_LEVEL[] PROGMEM = "Debug&nbsp;level";
 const char INTL_MEASUREMENT_INTERVAL[] PROGMEM = "Measuring interval (sec)";

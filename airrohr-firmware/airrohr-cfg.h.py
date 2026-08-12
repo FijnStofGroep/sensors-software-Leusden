@@ -89,6 +89,7 @@ UInt		mqtt_port
 String		mqtt_user
 Password	mqtt_pwd
 String		mqtt_topic
+String		mqtt_token
 String		measurement_name_influx
 Bool		ssl_influx
 Bool		has_fix_ip
