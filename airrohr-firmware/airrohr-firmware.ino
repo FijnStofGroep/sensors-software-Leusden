@@ -87,6 +87,8 @@
  * 		  • the new box / device ID                                     *
  * 		  • the box / device API key                                    *
  * 		  • alternative upload URL: (upload.staging.opensensemap.org)   *
+ *    - Sensor values can send to both opensensemap.org URL servers,	*
+ *      depends "senseboxid" or "osem_senseboxid" != null.				*
  * - MQTT Token in status message										*
  * 																		*
  * ---------------------------------------------------------------------*
@@ -133,8 +135,8 @@
  * latest build 2026-08-12	FWL-2026-08-P1								*
  * PLATFORM: Espressif 8266 (3.0.1) > NodeMCU 1.0 (ESP-12E Module)		*
  * HARDWARE: ESP8266 160MHz, 80KB RAM, 4MB Flash						*
- * RAM:     [=====     ]  47.0% (used 38516 bytes from 81920 bytes)		*
- * PROGRAM: [=======   ]  63.8% (used 665957 bytes from 1044464 bytes)	*
+ * RAM:     [=====     ]  47.1% (used 38548 bytes from 81920 bytes)		*
+ * PROGRAM: [=======   ]  63.8% (used 666265 bytes from 1044464 bytes)	*
  ************************************************************************/
 
 // VS: Convert Arduino file to C++ manually.
@@ -359,6 +361,7 @@ namespace cfg
 	bool ssl_madavi = SSL_MADAVI;
 	bool ssl_dusti = SSL_SENSORCOMMUNITY;
 	char senseboxid[LEN_SENSEBOXID] = SENSEBOXID;
+	char osem_senseboxid[LEN_SENSEBOXID] = SENSEBOXID;
 	char osem_device_api_key[LEN_OSEM_DEVICE_API_KEY] = OSEM_DEVICE_API_KEY;
 	char osem_alternate_host[LEN_OSEM_ALTERNATE_HOST] = OSEM_ALTERNATE_HOST;
 
@@ -2109,7 +2112,7 @@ static void readConfigBase(bool oldconfig)
 		if (strcmp_P(cfg::senseboxid, PSTR("00112233445566778899aabb")) == 0)
 		{
 			cfg::senseboxid[0] = '\0';
-			cfg::send2sensemap = false;
+			//cfg::send2sensemap = false;
 			rewriteConfig = true;
 		}
 
@@ -3041,6 +3044,8 @@ static void webserver_config_send_body_get(String &page_content)
 	add_form_checkbox(Config_send2sensemap, FPSTR(WEB_OPENSENSEMAP));
 	page_content += FPSTR(TABLE_TAG_OPEN);
 	add_form_input(page_content, Config_senseboxid, F("senseBox&nbsp;ID"), LEN_SENSEBOXID - 1);
+
+	add_form_input(page_content, Config_osem_senseboxid, F("API_senseBox&nbsp;ID"), LEN_SENSEBOXID - 1);
 	add_form_input(page_content, Config_osem_device_api_key, F("openSenseMap&nbsp;device&nbsp;API&nbsp;key"), LEN_OSEM_DEVICE_API_KEY - 1);
 	add_form_input(page_content, Config_osem_alternate_host, F("openSenseMap&nbsp;alternative&nbsp;host&nbsp;url"), LEN_OSEM_ALTERNATE_HOST - 1);
 
@@ -8713,9 +8718,12 @@ static void logEnabledAPIs()
 
 	if (cfg::send2sensemap)
 	{
-		debug_outln_info(F("\tOpenSenseMap.org"));
+		if( (*cfg::senseboxid) )
+		{
+			debug_outln_info(F("\tOpenSenseMap.org"));
+		}
 
-		if ( (*cfg::osem_alternate_host) )
+		if ( (*cfg::osem_senseboxid) && (*cfg::osem_alternate_host) )
 		{
 			debug_outln_info(F("\tAlternate Upload Host: "), String(cfg::osem_alternate_host));
 		}
@@ -8819,9 +8827,9 @@ static unsigned long sendDataToOptionalApis(const String &data)
 		}
 	}
 
-	if (cfg::send2sensemap && (cfg::senseboxid[0] != '\0'))
+	if (cfg::send2sensemap && (cfg::senseboxid[0] != '\0' || (*cfg::osem_senseboxid)))
 	{ // OpenSenseMap API
-		String sensemap_path( tmpl(FPSTR(URL_SENSEMAP), cfg::senseboxid));
+		String sensemap_path;	//String sensemap_path( tmpl(FPSTR(URL_SENSEMAP), cfg::senseboxid));
 
 		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("opensensemap: "));
 
@@ -8831,26 +8839,32 @@ static unsigned long sendDataToOptionalApis(const String &data)
 			data_2_sensemap = data_sensemap;
 			data_2_sensemap.replace("signal", "wifi_signal");	// replace Wifi signal ID.
 
-			if ( (*cfg::osem_alternate_host) && (*cfg::osem_device_api_key) )
+			if( (*cfg::senseboxid) )
 			{
-				sum_send_time += sendData(LoggerSensemap, data_2_sensemap, 0, cfg::osem_alternate_host, sensemap_path.c_str());
-			}
-			else
-			{
+				sensemap_path = tmpl(FPSTR(URL_SENSEMAP), cfg::senseboxid);
 				sum_send_time += sendData(LoggerSensemap, data_2_sensemap, 0, HOST_SENSEMAP, sensemap_path.c_str());
+			}
+
+			if ( (*cfg::osem_senseboxid) && (*cfg::osem_alternate_host) && (*cfg::osem_device_api_key) )
+			{
+				sensemap_path = tmpl(FPSTR(URL_SENSEMAP), cfg::osem_senseboxid);
+				sum_send_time += sendData(LoggerSensemap, data_2_sensemap, 0, cfg::osem_alternate_host, sensemap_path.c_str());
 			}
 
 			debug_outln_verbose(F("opensensemap data: "), data_2_sensemap);
 		}
 		else
 		{
-			if ( (*cfg::osem_alternate_host) && (*cfg::osem_device_api_key) )
+			if( (*cfg::senseboxid) )
 			{
-				sum_send_time += sendData(LoggerSensemap, data, 0, cfg::osem_alternate_host, sensemap_path.c_str());
-			}
-			else
-			{
+				sensemap_path = tmpl(FPSTR(URL_SENSEMAP), cfg::senseboxid);
 				sum_send_time += sendData(LoggerSensemap, data, 0, HOST_SENSEMAP, sensemap_path.c_str());
+			}
+
+			if ( (*cfg::osem_senseboxid) && (*cfg::osem_alternate_host) && (*cfg::osem_device_api_key) )
+			{
+				sensemap_path = tmpl(FPSTR(URL_SENSEMAP), cfg::osem_senseboxid);
+				sum_send_time += sendData(LoggerSensemap, data, 0, cfg::osem_alternate_host, sensemap_path.c_str());
 			}
 
 			//debug_outln_verbose(F("opensensemap data: "), data);
