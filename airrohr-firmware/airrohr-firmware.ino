@@ -458,6 +458,9 @@ bool npm_init_failed = false;
 #if defined(ESP8266)
 ESP8266WebServer server(80);
 
+// DNSServer default port.
+const byte DNS_PORT = 53;			
+
 // MQTT
 #define MAX_MQTT_BUFFER_SIZE	512
 const char mqtt_lwt[5] = MQTT_LWT;
@@ -1114,11 +1117,28 @@ static bool NPM_get_State( uint8_t *status)
 ///         | Laser | Memory | Fan   | T/RH  | Heat  |  Not  | Degraded | Sleep |
 ///         | Error | Error  | Error | Error | Error | Ready |  State   | State |
 /// Remark:
-///     The bit 0 is set to 1 when the sensor is set to sleep state: the laser, the fan and the heat are
-///     switched off.
+///     The bit 0 is set to 1 when the sensor is set to sleep state: the laser, the fan, the heat and the measurementsare
+///     switched off. The only command frame still possible is 0x16 (Read the NextPM State), the NextPM
+///		will respond to any other command frame as if it is the 0x16 command frame.
 ///
 ///     The bit 1 is set to 1 each time a minor error is detected, the sensor part (bit3 till bit7) in error 
 ///     is set to 1 in the state code, the NextPM can still send data but with less accuracy.
+///
+///		The minor errors are the following:
+///			● Heat Error, the relative humidity stay above 60% during more than 10 minutes,
+///			● T/RH Error, the sensor reading are out of specification,
+///			● Fan Error, the fan speed is out of range but the fan is still working.
+///			● Memory Error, the sensor can’t access its memory, some internal smart functions will not be available.
+/// Note:
+///		The sensor will be set to "Default State" if the fan or the laser are broken. 
+///		If the sensor is in the	"Default State", the degraded state flag is set to 0, the default part is indicated by its 
+///		flag set to 1 and the bit 0 indicates that the sensor is in sleep state.
+///		In the Default State and so in sleep mode, the 0x15 command frame turns on the sensor: 
+///		it allows the user to try a restart without errors.
+///
+///		If the sensor replies by a 0x16 command frame, it means that the NextPM has no data to send
+///		neither because the sensor has just been switched on nor because the sensor is in the Default
+///		State or Sleep State.
 ///
 /// @param *status =s NPM tate value.
 /// @return : true = Okay, false = Not Okay.
@@ -1178,9 +1198,12 @@ static bool Parser_StateValue(uint8_t *status)
     return result;
 }
 
-/// @brief
-/// @param status
-/// @return
+///
+///	@brief :
+///			During the sleep mode, if the sensor receives a new 0x15 command frame, the NextPM switches ON
+///			and sends the first valid PM data after 15 seconds.
+/// @param : status
+/// @return : bool
 static bool NPM_start_stop(uint8_t *status)
 {
     debug_outln_info(F("Switch start/stop NPM..."));
@@ -1638,6 +1661,10 @@ bool NPM_ReadMeasuredTmp_HumValues(uint16_t *temp, uint16_t *humi)
 
     if( chrlen == NPM_REPLY_HEADER_4)
     {
+		//Sensor replies 0x16 command frame, it means that the NextPM has no data to send,
+		//neither because the NextPM has just been switched on, nor because the NextPM is in the 
+		//T/RH Error State or Sleep State.
+
         Parser_StateValue( state);
 
         debug_outln_verbose(F("Tmp_Hum read ERROR, Current State: "), String(state[0]));
@@ -1647,7 +1674,6 @@ bool NPM_ReadMeasuredTmp_HumValues(uint16_t *temp, uint16_t *humi)
 
         //*temp = 0;
         //*humi = 0;
-
 
         return false;
     }
@@ -1672,7 +1698,9 @@ bool NPM_ReadMeasuredTmp_HumValues(uint16_t *temp, uint16_t *humi)
 		case NPM_REPLY_BODY_8:
 			if (serialNPM.readBytes(data, sizeof(data)) == sizeof(data))
 			{
+#if defined(VS_DEBUG)
 				NPM_data_debug(data, 4);
+#endif
 
 				NPM_temp = word(data[0], data[1]);
 				NPM_humi = word(data[2], data[3]);
@@ -1772,9 +1800,7 @@ uint NPM_Set_Heater_Mode(NPM_HEATER_MODE heaterMode)
 
 	serialNPM.write(sndbuf, cmd_len);
 
-#if defined(VS_DEBUG)
     NPM_data_debug(sndbuf, cmd_len, false);
-#endif
 
     int reply = 5;
     int len = 0;
@@ -4514,7 +4540,7 @@ static void wifiConfig()
 	// Ensure we don't poison the client DNS cache
 	dnsServer.setTTL(0);
 	dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-	dnsServer.start(53, "*", apIP); 					// 53 is port for DNS server
+	dnsServer.start( DNS_PORT, "*", apIP); 					// 53 is port for DNS server
 
 	setup_webserver();
 
@@ -5965,8 +5991,6 @@ static __noinline void fetchSensorHPM(String &s)
 /// @param s 
 static void fetchSensorNPM(String &s)
 {
-	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_NPM));
-
     uint8_t test_state = 0b00000100;
 
 	if (cfg::sending_intervall_ms > (WARMUPTIME_NPM_MS + READINGTIME_NPM_MS) && 
@@ -5988,6 +6012,8 @@ static void fetchSensorNPM(String &s)
     }
 	else
 	{
+		debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_NPM));
+
 		if (!is_NPM_running && !cfg::npm_fulltime)
 		{
 			debug_outln_verbose(F("fetchSensorNPM(): NPM to start-Up..."));
@@ -5995,7 +6021,7 @@ static void fetchSensorNPM(String &s)
 			is_NPM_running = NPM_start_stop(&test_state);
 		}
         else if ( is_NPM_running && msSince(starttime) > (cfg::sending_intervall_ms - READINGTIME_NPM_MS))
-		{ // DIMINUER LE READING TIME
+		{
 			debug_outln_info(F("NPM -> Read Measured PM/Temperature/Humidity values..."));
 
             uint16_t pm1_serial = 0;
@@ -6055,6 +6081,8 @@ static void fetchSensorNPM(String &s)
 
             debug_outln_verbose( F("reading counter: "), String(npm_val_count));
         }
+
+			debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_NPM));
 	}
 
 	if (send_now)
@@ -6148,8 +6176,6 @@ static void fetchSensorNPM(String &s)
 		npm_pm25_min_pcs = 60000;
 
 	}
-
-	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_NPM));
 }
 
 /*****************************************************************
@@ -7067,8 +7093,7 @@ static bool fwDownloadStream(WiFiClient &client, const String &url, Stream *ostr
 		return true;
 	}
 
-		debug_outln_verbose(F("fwDownloadStream( ENDED ) with Error: "), (resp > (HTTP_CODE_CONTINUE - 1)) ? String(resp) : http.errorToString(bytes_written));
-
+	debug_outln_verbose(F("fwDownloadStream( ENDED ) with Error: "), (resp > (HTTP_CODE_CONTINUE - 1)) ? String(resp) : http.errorToString(bytes_written));
 
 	return false;
 }
@@ -7263,6 +7288,7 @@ static void twoStageOTAUpdate()
 
 	rst_info * reset_Info = EspClass::getResetInfoPtr();
 	debug_outln_verbose(F("ESP Restart Reason code: "), String(reset_Info->reason));
+
 	if( reset_Info->reason == rst_reason::REASON_WDT_RST ||		/* hardware watch dog reset */
 		reset_Info->reason == rst_reason::REASON_SOFT_WDT_RST)	/* software watch dog reset */
 	{// this could be, if WiFi connection is slow.
@@ -9589,6 +9615,7 @@ void loop(void)
 
 #if defined(ESP8266)
 	MDNS.update();
+
 	if (cfg::npm_read)
 	{
 		serialNPM.perform_work();
