@@ -6516,7 +6516,6 @@ static void fetchSensorSEN5X(String &s)
 	last_value_SEN5X_N25 = value_SEN5X_N25 / SEN5X_measurement_count;
 	last_value_SEN5X_N4 = value_SEN5X_N4 / SEN5X_measurement_count;
 	last_value_SEN5X_N10 = value_SEN5X_N10 / SEN5X_measurement_count;
-	last_value_SEN5X_TS = value_SEN5X_TS / SEN5X_measurement_count;
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 
@@ -6529,7 +6528,6 @@ static void fetchSensorSEN5X(String &s)
 	add_Value2Json(s, FPSTR((result_SEN5X + F("N25")).c_str()), F("NC2.5: "), last_value_SEN5X_N25);
 	add_Value2Json(s, FPSTR((result_SEN5X + F("N4")).c_str()),  F("NC4.0: "), last_value_SEN5X_N4);
 	add_Value2Json(s, FPSTR((result_SEN5X + F("N10")).c_str()), F("NC10: "), last_value_SEN5X_N10);
-	add_Value2Json(s, FPSTR((result_SEN5X + F("TS")).c_str()),  F("TPS: "), last_value_SEN5X_TS);
 
 	debug_outln_info( FPSTR((result_SEN5X + "read counter: ").c_str()), String(SEN5X_read_counter));
 	debug_outln_info( FPSTR((result_SEN5X + "read error counter: ").c_str()), String(SEN5X_read_error_counter));
@@ -6567,7 +6565,7 @@ static void fetchSensorSEN5X(String &s)
 	sensor community server can't handle NOx ID, (server response code = 400)
 
 */
-static void fetchSensorSEN5X_THN(String &s,  bool flg_Nox = true, bool flg_clear = true)
+static void fetchSensorSEN5X_THN(String &s)
 {
 	if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0 /*|| memcmp(SEN5X_type, SENSOR_SEN54, 6) == 0*/ )
 	{
@@ -6579,35 +6577,28 @@ static void fetchSensorSEN5X_THN(String &s,  bool flg_Nox = true, bool flg_clear
 		//String result_SEN5X((char*)0);
 		//result_SEN5X.reserve(10);
 		// same as:
-		RESERVE_STRING(result_SEN5X, 10);
-		result_SEN5X = F("SEN5X_");
+		//RESERVE_STRING(result_SEN5X, 10);
+		//result_SEN5X = F("SEN5X_");
+		String result_SEN5X = F("SEN5X_");
 
 		debug_outln_verbose(FPSTR(DBG_TXT_START_READING), result_SEN5X);
 
 		add_Value2Json(s, FPSTR((result_SEN5X + F("temperature")).c_str()), FPSTR(DBG_TXT_TEMPERATURE), last_value_SEN5X_T);
 		add_Value2Json(s, FPSTR((result_SEN5X + F("humidity")).c_str()),    FPSTR(DBG_TXT_HUMIDITY),    last_value_SEN5X_H);
 
-		if (flg_Nox)
-		{	// NOx value.
-			add_Value2Json(s, FPSTR((result_SEN5X + F("co2_ppm")).c_str()), FPSTR(DBG_TXT_NOX), last_value_SEN5X_NOX);
-		}
-
 	// sensor community server can't handle this ID, (server response code = 400)
 	// only VOC value debugline.
 	// if (memcmp(cfg::sen5x_sym_pm, SENSOR_SEN55, 6) == 0)
 	// {
 	// 	add_Value2Json(s, FPSTR((result_SEN5X + F("VOC")).c_str()), FPSTR(DBG_TXT_VOC), last_value_SEN5X_VOC);
-		debug_outln_info( FPSTR(DBG_TXT_VOC), last_value_SEN5X_VOC);
+	//	debug_outln_info( FPSTR(DBG_TXT_VOC), last_value_SEN5X_VOC);
 	// }
 
 		debug_outln_verbose(FPSTR(DBG_TXT_END_READING), result_SEN5X);
 	}
 
-	if (flg_clear)
-	{
-		value_SEN5X_H = value_SEN5X_T = value_SEN5X_NOX = value_SEN5X_VOC = 0.0;
-		SEN5X_measurement_count = 0;
-	}
+	value_SEN5X_H = value_SEN5X_T = value_SEN5X_NOX = value_SEN5X_VOC = 0.0;
+	SEN5X_measurement_count = 0;
 }
 
 /*****************************************************************
@@ -8828,7 +8819,7 @@ static void setupNetworkTime()
 static unsigned long sendDataToOptionalApis(const String &data)
 {
 	unsigned long sum_send_time = 0;
-	RESERVE_STRING(data_sensemap, LARGE_STR);
+	RESERVE_STRING(data_sensemap, XLARGE_STR);
 
 	if (cfg::sen5x_read && (!is_Sen5x_init_failed))
 	{
@@ -8964,25 +8955,47 @@ static unsigned long sendDataToOptionalApis(const String &data)
 		send_csv(data);
 	}
 
+	return sum_send_time;
+}
+
+/// @brief : send Data To MQTT Broker
+/// @param : data 
+/// @return 
+static unsigned long sendDataToMQTTBroker(String &data)
+{
+	unsigned long sum_send_time = 0;
+
 #if defined(ESP8266)
 	if (cfg::send2mqtt)
 	{ // MQTT send process.
-		unsigned long  starttime_MQTT = millis();
+		unsigned long starttime_MQTT = millis();
 
-		debug_out(String(DBG_TXT_SENDING_TO) + String("mqtt: "), DEBUG_MAX_INFO);
+		debug_out(String(DBG_TXT_SENDING_TO) + String(F("mqtt:\n")), DEBUG_MAX_INFO);
 
-		data_sensemap.clear();
+		RESERVE_STRING(data_sensemap, XLARGE_STR);
+		//data_sensemap.clear();
 		data_sensemap = data;
 
-		if (cfg::sen5x_read && !is_Sen5x_init_failed && memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
-		{// Add VOC index to sensor MQTT send string.
-			data_sensemap.remove(data_sensemap.length() - 2);	// remove "]}"
-			data_sensemap += ',';
+		if (cfg::sen5x_read && !is_Sen5x_init_failed)
+		{
+			String result_SEN5X = F("SEN5X_");
 
-			add_Value2Json(data_sensemap, FPSTR((String(F("SEN5X_")) + F("VOC")).c_str()), FPSTR((String(F("\n") + String(DBG_TXT_VOC))).c_str()), last_value_SEN5X_VOC);
+			if (data_sensemap.indexOf(result_SEN5X) > -1)
+			{
+				data_sensemap.remove(data_sensemap.length() - 2); // remove "]}"
+				data_sensemap += ',';
 
-			data_sensemap.remove(data_sensemap.length() - 1);	// remove ','
-			data_sensemap += "]}";								// set JSON end chars.
+				//add_Value2Json(data_sensemap, FPSTR((result_SEN5X + F("TPS")).c_str()), String(last_value_SEN5X_TS));
+				add_Value2Json(data_sensemap, FPSTR((result_SEN5X + F("NOX")).c_str()), String(last_value_SEN5X_NOX));
+				add_Value2Json(data_sensemap, FPSTR((result_SEN5X + F("VOC")).c_str()), String(last_value_SEN5X_VOC));
+				//add_Value2Json(data_sensemap, FPSTR((String(F("SEN5X_")) + F("VOC")).c_str()), F("\nVOC: "), last_value_SEN5X_VOC);
+
+				data_sensemap.remove(data_sensemap.length() - 1); // remove ','
+				data_sensemap += "]}";							  // set JSON end chars.
+
+				// Add TPS, NOx, VOC to data string.
+				data = data_sensemap;
+			}
 		}
 
 		sendmqtt(data_sensemap);
@@ -8992,13 +9005,14 @@ static unsigned long sendDataToOptionalApis(const String &data)
 			mqtt_client.loop();
 		}
 
-		sum_send_time += millis() - starttime_MQTT;				//  micros() - starttime_MQTT;
-
+		sum_send_time += millis() - starttime_MQTT; //  micros() - starttime_MQTT;
 	}
+
 #endif
 
 	return sum_send_time;
 }
+
 
 /*****************************************************************
  * The Setup() => OS call                                        *
@@ -9335,7 +9349,7 @@ void loop(void)
 	if (send_now)
 	{
 		last_signal_strength = WiFi.RSSI();
-		RESERVE_STRING(data, LARGE_STR);
+		RESERVE_STRING(data, XLARGE_STR);
 		data = FPSTR(data_first_part);
 		RESERVE_STRING(result, MED_STR);
 
@@ -9377,17 +9391,20 @@ void loop(void)
 		if (cfg::sen5x_read && (!is_Sen5x_init_failed))
 		{
 			int pin;
-			RESERVE_STRING(resultTH, MED_STR);
+			String result_SEN55, result_TH;
 
-			fetchSensorSEN5X(result); // edit and format sensor type/value for sending to Sensor-Community webserver.
-			data += result;
+			fetchSensorSEN5X(result_SEN55);				 	// edit and format sensor type/value for sending to Sensor-Community webserver.
+			fetchSensorSEN5X_THN(result_TH);				// Get temperature and humidity.
+
+			data += result_SEN55;
+			data += result_TH;
+
+			result_TH.replace(F("SEN5X"), SENSOR_SEN55); 	// set 'SEN55' type ID.
+			result = result_SEN55;
 
 			if( cfg::sen5x_pin16 )
 			{
-				// Get only temperature and humidity.
-				fetchSensorSEN5X_THN(resultTH, false, false);
-				resultTH.replace("SEN5X", SENSOR_SEN55); // set 'SEN55' type ID.
-				result += resultTH;
+				result += result_TH;                  		// Set PM + Temperature + Humidity value.
 				pin = SEN5X_PM_API_PIN;
 			}
 			else
@@ -9397,20 +9414,13 @@ void loop(void)
 
 			sum_send_time += sendSensorCommunity(result, pin, FPSTR(SENSORS_SEN55), "SEN55_");
 
-			result = emptyString;
-
-			// Get temperature and humidity and NOx. for other API's
-			fetchSensorSEN5X_THN(result);
-			data += result;
-
 			if( !cfg::sen5x_pin16 )
 			{
 				pin = memcmp(cfg::sen5x_sym_th, SENSOR_SCD30, 6) == 0 ? SEN5X_SCD30_TH_API_PIN : SEN5X_SHT3X_TH_API_PIN;
-				sum_send_time += sendSensorCommunity(result, pin, FPSTR(SENSORS_SEN5X_TH), "SEN5X_");
+				sum_send_time += sendSensorCommunity(result_TH, pin, FPSTR(SENSORS_SEN5X_TH), "SEN55_");
 			}
 
 			result = emptyString;
-
 		}
 
 		if (cfg::sps30_read && (!sps30_init_failed))
@@ -9541,6 +9551,9 @@ void loop(void)
 		// send to Optional Api's:
 		sum_send_time += sendDataToOptionalApis(data);
 		
+		// send to a MQTT broker.
+		sum_send_time += sendDataToMQTTBroker(data);
+		
 		debug_outln_verbose(FPSTR(DBG_TXT_SEP));
 
 //#if defined(ESP8266)
@@ -9590,7 +9603,7 @@ void loop(void)
 		}
 
 		// Resetting for next sampling.
-		last_data_string = std::move(data);
+		last_data_string = std::move(data);		// data for json data
 		lowpulseoccupancyP1 = 0;
 		lowpulseoccupancyP2 = 0;
 		sample_count = 0;
