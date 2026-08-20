@@ -6516,6 +6516,7 @@ static void fetchSensorSEN5X(String &s)
 	last_value_SEN5X_N25 = value_SEN5X_N25 / SEN5X_measurement_count;
 	last_value_SEN5X_N4 = value_SEN5X_N4 / SEN5X_measurement_count;
 	last_value_SEN5X_N10 = value_SEN5X_N10 / SEN5X_measurement_count;
+	last_value_SEN5X_TS = value_SEN5X_TS / SEN5X_measurement_count;
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 
@@ -7315,16 +7316,16 @@ static void StartTwoStageOTAUpdate()
 
 	lang_variant.toLowerCase();
 
-	String fetch_name( String(FPSTR(FW_DOWNLOAD_URL)) + F("/latest_"));
+	String URL_fetch_name( String(FPSTR(FW_DOWNLOAD_URL)) + F("/latest_"));
 	if (cfg::use_beta)
 	{
-		fetch_name = String(FPSTR(FW_DOWNLOAD_URL)) + F(OTA_BASENAME "/beta/latest_");
+		URL_fetch_name = String(FPSTR(FW_DOWNLOAD_URL)) + F(OTA_BASENAME "/beta/latest_");
 	}
 
 	// OTA HTTP server URL
 	// 			http://air.fijnstofleusden.nl:4488/firmware/update/latest_en.bin
-	fetch_name += lang_variant;
-	fetch_name += F(".bin");
+	URL_fetch_name += lang_variant;
+	URL_fetch_name += F(".bin");
 
 #if defined(CLIENTSECURE)
 	BearSSL::WiFiClientSecure client;
@@ -7339,11 +7340,11 @@ static void StartTwoStageOTAUpdate()
 	WiFiClient client;
 #endif
 
-	String fetch_md5_name(fetch_name);
-	fetch_md5_name += F(".md5");
+	String URL_fetch_md5_name(URL_fetch_name);
+	URL_fetch_md5_name += F(".md5");
 
 	StreamString newFwmd5;
-	if (!fwDownloadStream(client, fetch_md5_name, &newFwmd5))
+	if (!fwDownloadStream(client, URL_fetch_md5_name, &newFwmd5))
 	{
 		debug_outln_verbose(F("No .md5 file found on Update server."));
 		return;
@@ -7379,15 +7380,15 @@ static void StartTwoStageOTAUpdate()
 	//debug_outln_verbose(F("Firmware File process.."), String(fetch_name) + F(" => ") + String(firmware_name));
 	debug_outln_verbose(F("Start Download Firmware File process.."));
 
-	if (!fwDownloadStreamFile(client, fetch_name, firmware_name))
+	if (!fwDownloadStreamFile(client, URL_fetch_name, firmware_name))
 	{
-		debug_outln_verbose(F("Failed DownloadStreamFile(): "), fetch_name);
+		debug_outln_verbose(F("Failed DownloadStreamFile(): "), URL_fetch_name);
 		return;
 	}
 
-	if (!fwDownloadStreamFile(client, fetch_md5_name, firmware_md5_name))
+	if (!fwDownloadStreamFile(client, URL_fetch_md5_name, firmware_md5_name))
 	{
-		debug_outln_verbose(F("Failed DownloadStreamFile(): "), fetch_md5_name);
+		debug_outln_verbose(F("Failed DownloadStreamFile(): "), URL_fetch_md5_name);
 		return;
 	}
 
@@ -8827,7 +8828,7 @@ static unsigned long sendDataToOptionalApis(const String &data)
 		data_sensemap.replace("SEN55", cfg::sen5x_sym_pm);	 	// replace PM Sensor Type Name.
 		data_sensemap.replace("SEN5X", cfg::sen5x_sym_th);		// replace temp/hummidity/NOx Sensor Type Name.
 
-		debug_outln_verbose(F("sendDataToOptionalApis data:\n"), data_sensemap);
+		debug_outln_verbose(F("SEN55: sendDataToOptionalApis data:\n"), data_sensemap);
 	}
 
 	if (cfg::send2madavi)
