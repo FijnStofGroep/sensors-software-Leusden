@@ -31,7 +31,7 @@ const char INTL_NPM_FULLTIME[] PROGMEM = "Fan aan";
 #define INTL_NPM_HEATER_MODE "Verwarmings Mode"                          //const char INTL_NPM_HEATER_MODE[] PROGMEM = "Heater Mode";
 #define INTL_NPM_HEATER_ELEMENT  "verwarming "                           // use in web_status page.
 const char INTL_IPS[] PROGMEM = "Piera Systems IPS-7100 ({pm})";
-const char INTL_SEN5X[] PROGMEM = "Sensirion SEN5X ({pm}, {t}, {h}, {voc}, {nox})";
+//const char INTL_SEN5X[] PROGMEM = "Sensirion SEN5X ({pm}, {t}, {h}, {voc}, {nox})";
 const char INTL_SPS30[] PROGMEM = "Sensirion SPS30 ({pm})";
 const char INTL_PPD42NS[] PROGMEM = "PPD42NS ({pm})";
 const char INTL_DHT22[] PROGMEM = "DHT22 ({t}, {h})";
@@ -157,20 +157,18 @@ const char INTL_SIGNAL_QUALITY[] PROGMEM = "Signaalkwaliteit";
 #define INTL_PARAMETER "Parameter"
 #define INTL_VALUE "Waarde"
 
-#define INTL_ENABLE_MOREWIFI "Enable more Wifi SSID (enable after reboot)"
+#define INTL_ENABLE_MOREWIFI "Meer Wifi-SSID inschakelen (inschakelen na herstart)"
 #define INTL_MORE_TEMP_SENSORS "Temperature Sensors"
-const char INTL_SEN5X_ON[] PROGMEM = "Fan always on";
-const char INTL_SEN5X_PIN16[] PROGMEM = "On = PIN 16 (SEN5X), Off = PIN 1 (SPS30)";
+const char INTL_SENSOR_FAN_ON[] PROGMEM = "Ventilator altijd aan";
+const char INTL_SEN5X_PIN16[] PROGMEM = "Aan = PIN 16 (SEN5X), Uit = PIN 1 (SPS30)";
 const char INTL_SENSORCOMMUNITY[] PROGMEM = "Sensor Community:";
 
-//const char INTL_UPDATE_FIRMWARE[] PROGMEM = "Update Firmware";
 #define INTL_UPDATE_FIRMWARE "Update Firmware"
 
+#define INTL_SENSIRION_MODEL "Sensirion Model  "
 #define INTL_SEN5X_EMP_PM "Emulate PM SEN5X"
 #define INTL_SEN5X_EMP_TH "Emulate TH SEN5X"
 
-#define INTL_ENABLE_S7000 "Enable S7000 LTE"
-
-#define INTL_ENABLE_RCWL_0516 "Radar Motion aan (after enable reboot and insert server credentials)"
+#define INTL_ENABLE_RCWL_0516 "Radar Motion aan (na inschakelen opnieuw opstarten en servergegevens invoeren)"
 
 
