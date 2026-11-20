@@ -1,13 +1,15 @@
 
-
+//
 // This file is generated, please do not edit.
 // Change airrohr-cfg.h.py instead.
 // update: 29 juli 2023
 // add Bool Fix IP
-// update: 28 December 2023
+//
 // add more settings
 //
 // run python airrohr-cfg.h.py
+//
+// Update: 21 October 2026
 //
 
 #ifndef __airrohr_cfg_h
@@ -126,6 +128,11 @@ enum ConfigShapeId {
 	Config_mqtt_pwd,
 	Config_mqtt_topic,
 	Config_mqtt_token,
+	Config_mqtt_server_2,
+	Config_mqtt_port_2,
+	Config_mqtt_user_2,
+	Config_mqtt_pwd_2,
+	Config_mqtt_topic_2,
 	Config_measurement_name_influx,
 	Config_ssl_influx,
 	Config_has_fix_ip,
@@ -229,6 +236,11 @@ static constexpr char CFG_KEY_MQTT_USER[] PROGMEM = "mqtt_user";
 static constexpr char CFG_KEY_MQTT_PWD[] PROGMEM = "mqtt_pwd";
 static constexpr char CFG_KEY_MQTT_TOPIC[] PROGMEM = "mqtt_topic";
 static constexpr char CFG_KEY_MQTT_TOKEN[] PROGMEM = "mqtt_token";
+static constexpr char CFG_KEY_MQTT_SERVER_2[] PROGMEM = "mqtt_server_2";
+static constexpr char CFG_KEY_MQTT_PORT_2[] PROGMEM = "mqtt_port_2";
+static constexpr char CFG_KEY_MQTT_USER_2[] PROGMEM = "mqtt_user_2";
+static constexpr char CFG_KEY_MQTT_PWD_2[] PROGMEM = "mqtt_pwd_2";
+static constexpr char CFG_KEY_MQTT_TOPIC_2[] PROGMEM = "mqtt_topic_2";
 static constexpr char CFG_KEY_MEASUREMENT_NAME_INFLUX[] PROGMEM = "measurement_name_influx";
 static constexpr char CFG_KEY_SSL_INFLUX[] PROGMEM = "ssl_influx";
 static constexpr char CFG_KEY_HAS_FIX_IP[] PROGMEM = "has_fix_ip";
@@ -265,7 +277,7 @@ static constexpr ConfigShapeEntry configShape[] PROGMEM = {
 	{ Config_Type_Bool, 0, CFG_KEY_NPM_FULLTIME, &cfg::npm_fulltime },
 	{ Config_Type_UInt, 0, CFG_KEY_NPM_HEATER_MODE, &cfg::npm_heater_mode },
 	{ Config_Type_Bool, 0, CFG_KEY_IPS_READ, &cfg::ips_read },
-	{ Config_Type_Bool, 0, CFG_KEY_SEN5X_READ, &cfg::sen5x_read },
+	{ Config_Type_UInt, 0, CFG_KEY_SEN5X_READ, &cfg::sen5x_read },
 	{ Config_Type_Bool, 0, CFG_KEY_SEN5X_ON, &cfg::sen5x_on },
 	{ Config_Type_String, sizeof(cfg::sen5x_sym_pm)-1, CFG_KEY_SEN5X_SYM_PM, cfg::sen5x_sym_pm },
 	{ Config_Type_String, sizeof(cfg::sen5x_sym_th)-1, CFG_KEY_SEN5X_SYM_TH, cfg::sen5x_sym_th },
@@ -332,6 +344,11 @@ static constexpr ConfigShapeEntry configShape[] PROGMEM = {
 	{ Config_Type_Password, sizeof(cfg::mqtt_pwd)-1, CFG_KEY_MQTT_PWD, cfg::mqtt_pwd },
 	{ Config_Type_String, sizeof(cfg::mqtt_topic)-1, CFG_KEY_MQTT_TOPIC, cfg::mqtt_topic },
 	{ Config_Type_String, sizeof(cfg::mqtt_token)-1, CFG_KEY_MQTT_TOKEN, cfg::mqtt_token },
+	{ Config_Type_String, sizeof(cfg::mqtt_server_2)-1, CFG_KEY_MQTT_SERVER_2, cfg::mqtt_server_2 },
+	{ Config_Type_UInt, 0, CFG_KEY_MQTT_PORT_2, &cfg::mqtt_port_2 },
+	{ Config_Type_String, sizeof(cfg::mqtt_user_2)-1, CFG_KEY_MQTT_USER_2, cfg::mqtt_user_2 },
+	{ Config_Type_Password, sizeof(cfg::mqtt_pwd_2)-1, CFG_KEY_MQTT_PWD_2, cfg::mqtt_pwd_2 },
+	{ Config_Type_String, sizeof(cfg::mqtt_topic_2)-1, CFG_KEY_MQTT_TOPIC_2, cfg::mqtt_topic_2 },
 	{ Config_Type_String, sizeof(cfg::measurement_name_influx)-1, CFG_KEY_MEASUREMENT_NAME_INFLUX, cfg::measurement_name_influx },
 	{ Config_Type_Bool, 0, CFG_KEY_SSL_INFLUX, &cfg::ssl_influx },
 	{ Config_Type_Bool, 0, CFG_KEY_HAS_FIX_IP, &cfg::has_fix_ip },

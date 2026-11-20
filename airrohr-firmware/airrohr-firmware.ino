@@ -9,6 +9,10 @@
  *    Copyright (C) 2016-2021  Code for Stuttgart a.o.                  *
  *    Copyright (C) 2019-2020  Dirk Mueller                             *
  *    Copyright (C) 2022-2026  Roel Dieperink                           *
+ *																		*
+ * This source code is provided 'AS-IS', without any express or implied *
+ * warranty. In no event will the author be held liable for any damages *
+ * arising from the use of this software.								*
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -91,6 +95,9 @@
  *      depends "senseboxid" or "osem_senseboxid" != null.				*
  * - MQTT Token in status message										*
  * 																		*
+ * 2026-10-13: RD														*
+ * - Add: sensor SEN65: that use the same opties as sensor SEN55.		*
+ * 																		*
  * ---------------------------------------------------------------------*
  * Note:                                                                *
  * There is a hardware WDT and a software WDT.							*
@@ -99,7 +106,15 @@
  * The SW WDT seems to reset the MCU at 1.5 about seconds.				*
  * You can enable/disable the SW WDT, but not the HW WDT.				*
  * There seems to be little point in disabling the SW WDT as you must 	*
- * reset it to also reset the HW WDT.									*	
+ * reset it to also reset the HW WDT.									*
+ * 																		*
+ * Note: 	 															*
+ *  - max. Flash Memory size is set to 1MB (1048576 bytes) for ESP8266.	*
+ *    set in platformio.ini file: eagle.flash.4m3m.ld					*
+ *  - Firmware size could NOT be larger than 722kB (722000 bytes) 		*
+ *    for OTA update.													*
+ *  - 722kB till 1000kB used for "loader.bin" => installer new firmware.*
+	
  ************************************************************************
  * 																		*
  * build using lib 3.1.0												*
@@ -132,11 +147,11 @@
  * RAM:     [=====     ]  46.9% (used 38412 bytes from 81920 bytes)		*
  * PROGRAM: [=======   ]  63.7% (used 665253 bytes from 1044464 bytes)	*
  * 																		*
- * latest build 2026-08-12	FWL-2026-08-P1								*
- * PLATFORM: Espressif 8266 (3.0.1) > NodeMCU 1.0 (ESP-12E Module)		*
+ * latest build 2026-11-19	FWL-2026-11-P2								*
+ * PLATFORM: Espressif 8266 (3.1.0) > NodeMCU 1.0 (ESP-12E Module)		*
  * HARDWARE: ESP8266 160MHz, 80KB RAM, 4MB Flash						*
- * RAM:     [=====     ]  47.1% (used 38548 bytes from 81920 bytes)		*
- * PROGRAM: [=======   ]  63.8% (used 666265 bytes from 1044464 bytes)	*
+ * RAM:     [=====     ]  47.4% (used 38868 bytes from 81920 bytes)		*
+ * PROGRAM: [=======   ]  64.1% (used 669997 bytes from 1044464 bytes)	*
  ************************************************************************/
 
 // VS: Convert Arduino file to C++ manually.
@@ -148,10 +163,10 @@
 // increment on change.
 #if defined(VS_DEBUG)
 // Debug / Beta version:
- #define SOFTWARE_VERSION_STR "FWL-2025-10-B7"
+ #define SOFTWARE_VERSION_STR "FWL-2026-07-B1"
 #else
 // Production / Release version:
- #define SOFTWARE_VERSION_STR "FWL-2026-08-P1"
+ #define SOFTWARE_VERSION_STR "FWL-2026-11-P2"
 #endif
 
 String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
@@ -167,7 +182,7 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <SoftwareSerial.h>
-#include <Hash.h>
+//#include <Hash.h>
 #include <ctime>
 #include <coredecls.h>
 #include <sntp.h>
@@ -214,7 +229,6 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include <StreamString.h>
 #include <DallasTemperature.h>
 #include <SparkFun_SCD30_Arduino_Library.h>
-#include <SensirionI2CSen5x.h>
 #include <TinyGPS++.h>					//  Arduino library for parsing NMEA data streams provided by GPS modules. 
 
 // local/modified header files.
@@ -226,6 +240,7 @@ String SOFTWARE_VERSION(SOFTWARE_VERSION_STR);
 #include "ext_def.h"
 #include "html-content.h"
 #include "./RCWL-0516.h"
+#include "./Sensirion_Interface.h"		// SEN5X/SEN65 sensor library for SEN5X/SEN65 sensor (PM, RH & T, VOC, NOx)
 
 // Temp language fields
 #include "./intl_new.h"
@@ -242,19 +257,24 @@ const float OffsetHumidity = 5.0;   // -5 %RH offset.
 
 // NextPM sensor
 // Heater mode =>  NONE, OFF, ON, AUTO-REGULATED, HEATING_CONTROL
-enum NPM_HEATER_MODE
+namespace NPM_Heater
 {
-	NONE = 0,
-    OFF = 1,
-    ON = 2,
-    AUTO_REGULATED = 3,
-	HEATING_CONTROL = 4,		// if hum > 65% then Heater ON else < 60% Heater OFF.
+	enum heater_mode
+	{
+		NONE = 0,
+		OFF = 1,
+		ON = 2,
+		AUTO_REGULATED = 3,
+		HEATING_CONTROL = 4,		// if hum > 65% then Heater ON else < 60% Heater OFF.
 
-	Count						// always last => constant such as `Count` the number of enum entries. 
-} NPM_Heater_Mode;
+		Count						// always last => constant such as `Count` the number of enum entries. 
+	} NPM_Heater_Mode;
 
-//  Get enum NPM_HEAT_MODE value name: sizeof(NPM_HEAT_Mode)
-String NPM_HEATER_MODE_NAME[NPM_HEATER_MODE::Count] = {"None", "Off", "On", "Auto", "Control"};
+	//  Get enum NPM_HEAT_MODE value name: sizeof(NPM_HEAT_Mode)
+	String NPM_HEATER_MODE_NAME[NPM_Heater::Count] = {"None", "Off", "On", "Auto", "Control"};
+}
+
+typedef NPM_Heater::heater_mode NPM_HEATER_MODE;
 
 #pragma endregion
 
@@ -267,6 +287,7 @@ String NPM_HEATER_MODE_NAME[NPM_HEATER_MODE::Count] = {"None", "Off", "On", "Aut
  * Note that the names of these variables can't be easily changed *
  * as they are part of the json format used to persist the data.  *
  ******************************************************************/
+#pragma region "namespace cfg"
 namespace cfg
 {
 	unsigned debug = DEBUG;
@@ -311,7 +332,7 @@ namespace cfg
 	bool npm_fulltime = NPM_FULLTIME;
 	unsigned npm_heater_mode = NPM_HEATER_MODE::NONE;
 	bool ips_read = IPS_READ;
-	bool sen5x_read = SEN5X_READ;
+	unsigned sen5x_read = SENSIRION_MODEL::SEN55;	// SEN55/SEN65 sensor (PM, RH & T, VOC, NOx)
 	bool sen5x_on = SEN5X_ON;
 	char sen5x_sym_pm[LEN_SEN5X_SYM] = SEN5X_SYM_PM;
 	char sen5x_sym_th[LEN_SEN5X_SYM] = SEN5X_SYM_TH;
@@ -390,14 +411,30 @@ namespace cfg
 	char pwd_radar[LEN_CFG_PASSWORD] = PWD_RADAR;
 
 #if defined(ESP8266)
-	/*	MQTT  */
+	// *** MQTT Broker 1 ***
 	char mqtt_server[LEN_HOST_CUSTOM];
 	unsigned mqtt_port = MQTT_PORT;
 	char mqtt_user[LEN_USER_INFLUX] = MQTT_USER;
 	char mqtt_pwd[LEN_PASS_INFLUX] = MQTT_PWD;
 	char mqtt_topic[LEN_MQTT_HEADER] = MQTT_TOPIC;
 	char mqtt_token[LEN_MQTT_TOKEN] = MQTT_TOKEN;
+
+	// *** MQTT Broker 2 ***
+	char mqtt_server_2[LEN_HOST_CUSTOM];
+	unsigned mqtt_port_2 = MQTT_PORT;
+	char mqtt_user_2[LEN_USER_INFLUX] = MQTT_USER;
+	char mqtt_pwd_2[LEN_PASS_INFLUX] = MQTT_PWD;
+	char mqtt_topic_2[LEN_MQTT_HEADER] = MQTT_TOPIC;
+	//char mqtt_token_2[LEN_MQTT_TOKEN] = MQTT_TOKEN;	= mqtt_token
+
 #endif
+
+	/// @brief : 
+	/// @return : true = sensirion selected, false = sensirion not selected.
+	bool IsSen5x_read()
+	{
+		return sen5x_read > SENSIRION_MODEL::NONE;
+	}
 
 	// init: set default values to options.
 	void initNonTrivials(const char *id)
@@ -418,6 +455,7 @@ namespace cfg
 		strcpy_P(cfg::measurement_name_influx, MEASUREMENT_NAME_INFLUX);
 
 		strcpy_P(cfg::mqtt_server, SERVER_MQTT);
+		strcpy_P(cfg::mqtt_server_2, WLANPWD);		// or cfg::mqtt_server_2[0] = WLANPWD;	// empty string.
 
 		strcpy_P(cfg::static_ip, STATIC_IP);
 		strcpy_P(cfg::static_subnet, STATIC_SUBNET);
@@ -435,10 +473,11 @@ namespace cfg
 
 } // namespace cfg
 
+#pragma endregion
 
 //*************************************************************************************************************************************************
 
-#define JSON_BUFFER_SIZE 3500					// 2300 -> 3500	=> increase: 11-11-2023
+#define JSON_BUFFER_SIZE 5000					// 2300 -> 5000	=> increase: 11-11-2026
 
 ESP8266WiFiMulti wifiMulti;
 
@@ -489,6 +528,9 @@ const uint8_t default_ip_second_octet = 168;
 const uint8_t default_ip_third_octet = 4;
 const uint8_t default_ip_fourth_octet = 1;
 
+/*****************************************************************
+ * Include content.                                   	         *
+ *****************************************************************/
 #include "./sen5x_html.h"
 #include "./airrohr-cfg.h"
 
@@ -515,6 +557,11 @@ const uint8_t lcd_2004_default_i2c_address = 0x3f;
 const uint8_t lcd_2004_alternate_i2c_address =  0x27;
 const uint8_t lcd_2004_columns = 20;
 const uint8_t lcd_2004_rows = 4;
+
+/*****************************************************************
+ * Sensor Declarations:                                          *
+ *****************************************************************/
+#pragma region "Sensor Declarations."
 
 /*****************************************************************
  * Serial port declarations                                      *
@@ -577,7 +624,8 @@ unsigned char SEN5X_type[6];
  #define USE_PRODUCT_INFO
 #endif
 
-SensirionI2CSen5x sen5x;
+//SensirionI2CSen5x sen5x;						// SEN5X sensor library for SEN5X sensor (PM, RH & T, VOC, NOx)
+ISensirionSensor *m_sensirionSensor = nullptr;	// Interface pointer => SEN5X- or SEN65 sensor library. 
 
 /*****************************************************************
  * SCD30 declaration                                             *
@@ -589,10 +637,13 @@ SCD30 scd30;
  *****************************************************************/
 TinyGPSPlus gps;
 
+#pragma endregion
+
 /*****************************************************************
  * Variable Definitions for PPD24NS                              *
  * P1 for PM10 & P2 for PM25                                     *
  *****************************************************************/
+#pragma region "Variable Definitions for all Sensor values."
 
 boolean trigP1 = false;
 boolean trigP2 = false;
@@ -674,7 +725,7 @@ String current_th_npm;
 bool is_PMS_running = true;
 bool is_HPM_running = true;
 bool is_NPM_running = false;
-bool is_IPS_running;
+bool is_IPS_running = false;
 
 unsigned long sending_time = 0;
 unsigned long last_update_attempt;
@@ -944,6 +995,9 @@ IPAddress addr_static_dns;
 const char data_first_part[] PROGMEM = "{\"software_version\": \"" SOFTWARE_VERSION_STR "\", \"sensordatavalues\":[";
 const char JSON_SENSOR_DATA_VALUES[] PROGMEM = "sensordatavalues";
 
+#pragma endregion
+
+
 /*****************************************************************
  * Display values for debugging.                                 *
  *****************************************************************/
@@ -996,6 +1050,7 @@ static void display_debug(const String &text1, const String &text2)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #pragma GCC diagnostic ignored "-Wunused-function"
+
 static void readFileContents( String fileName)
 {
 	debug_outln_verbose(F("Reading file contents: "), fileName);
@@ -1838,14 +1893,14 @@ void NPM_Heating_Control(float relative_humidity)
 		NPM_Set_Heater_Mode(NPM_HEATER_MODE::ON);
 		Is_Heater_ModeOn = true;
 
-		debug_outln(F("NPM_Heater_Mode: ON | humidity > 65%"), DEBUG_MAX_INFO);
+		debug_outln(F("NPM_Heater_Mode: ON | humidity > ") + String(m_humidity_threshold) + F("%"), DEBUG_MAX_INFO);
 	}
 	else if (Is_Heater_ModeOn && (relative_humidity < (m_humidity_threshold - OffsetHumidity)))
 	{ // offset = -5%
 		NPM_Set_Heater_Mode(NPM_HEATER_MODE::OFF);
 		Is_Heater_ModeOn = false;
 
-		debug_outln(F("NPM_Heater_Mode: OFF | humidity < 60%"), DEBUG_MAX_INFO);
+		debug_outln(F("NPM_Heater_Mode: OFF | humidity < ") + String(m_humidity_threshold - OffsetHumidity) + F("%"), DEBUG_MAX_INFO);
 	}
 }
 
@@ -1885,9 +1940,9 @@ static String IPS_version_date()
 }
 
 /*****************************************************************
- * read SEN5X sensor serial and firmware date                    *
+ * print SENXX sensor Product Name and module version.           *
  *****************************************************************/
-void printModuleVersions() 
+void printSensirionSensorModuleVersions() 
 {
     uint16_t error;
     char errorMessage[256];
@@ -1895,7 +1950,7 @@ void printModuleVersions()
     unsigned char productName[32];
     uint8_t productNameSize = 32;
 
-    error = sen5x.getProductName(productName, productNameSize);
+    error = m_sensirionSensor->getProductName(productName, productNameSize);
 
     if (error) 
 	{
@@ -1920,9 +1975,9 @@ void printModuleVersions()
     uint8_t protocolMajor;
     uint8_t protocolMinor;
 
-    error = sen5x.getVersion(firmwareMajor, firmwareMinor, firmwareDebug,
-                             hardwareMajor, hardwareMinor, protocolMajor,
-                             protocolMinor);
+    error = m_sensirionSensor->getVersion(firmwareMajor, firmwareMinor, firmwareDebug,
+										  hardwareMajor, hardwareMinor, protocolMajor,
+										  protocolMinor);
     if (error) 
 	{
         Debug.print(F("Error trying to execute getVersion(): "));
@@ -1944,14 +1999,17 @@ void printModuleVersions()
     }
 }
 
-void printSerialNumber() 
+/*****************************************************************
+ * print SENXX sensor serial number.				             *
+ *****************************************************************/
+void printSensirionSensorSerialNumber() 
 {
     uint16_t error;
     char errorMessage[256];
     unsigned char serialNumber[32];
     uint8_t serialNumberSize = 32;
 
-    error = sen5x.getSerialNumber(serialNumber, serialNumberSize);
+    error = m_sensirionSensor->getSerialNumber(serialNumber, serialNumberSize);
 
     if (error) 
 	{
@@ -2299,7 +2357,7 @@ static bool writeConfigBase()
 	}
 
 	debug_outln_info(F("Write JSON format.....\nJson memory size: "), String(json.memoryUsage()) + 
-					 " | Elementen in array: " + String(json.size()) );
+					 F(" | Elementen in array: ") + String(json.size()) );
 
     if (cfg::debug == DEBUG_ENGINEER_INFO)
     {
@@ -2406,8 +2464,11 @@ static float dew_point(const float temperature, const float humidity)
 static float pressure_at_sealevel(const float temperature, const float pressure)
 {
 	float pressure_at_sealevel;
+    const float k1 = 273.15f;
+    const float k2 = 0.0065f;
+    const float k3 = -5.255f;
 
-	pressure_at_sealevel = pressure * pow(((temperature + 273.15f) / (temperature + 273.15f + (0.0065f * readCorrectionOffset(cfg::height_above_sealevel)))), -5.255f);
+	pressure_at_sealevel = pressure * pow(((temperature + k1) / (temperature + k1 + (k2 * readCorrectionOffset(cfg::height_above_sealevel)))), k3);
 
 	return pressure_at_sealevel;
 }
@@ -2551,6 +2612,8 @@ static void add_form_input( String &page_content,
 }
 
 /*
+  Input:   <label for="led1_ID"> <input type="checkbox" name="led1" id="led1_ID" value="on" checked> LED 1 On </label><br>
+
   return value:
 			str = fill webpage value.
 */
@@ -2583,6 +2646,52 @@ static String form_checkbox(const ConfigShapeId cfgid, const String &info, const
 	return s;
 }
 
+#if defined(false)	// defined(false) = disable radio button group, FFU.
+/// @brief :
+///    <label for="cfgid.key"><input type="radio" name="radio_groupX" id="cfgid.key" value="SEN55" checked/>RD Huey</label>
+///	   Note:
+///		- A radio group is defined by giving each of radio buttons in the group the same name. Once a radio group is 
+/// 	  established, selecting any radio button in that group automatically deselects any currently-selected
+/// 	  radio button in the same group.
+///  	- You can have as many radio groups on a page as you like, as long as each has its own unique name.
+///
+/// @param cfgid 
+/// @param info 
+/// @param linebreak 
+/// @return
+///
+//  warning: 'String form_radiobutton(ConfigShapeId, const String&, const String&, bool)' declared 'static' but never defined [-Wunused-function]
+//  note: /*static*/ as comment.
+/*static*/ String form_radiobutton(const ConfigShapeId cfgid, const String &radio_groupID, const String &info, const bool linebreak)
+{
+	RESERVE_STRING(s, MED_STR);
+
+	s = F("<label for='{n}'>"
+		  "<input type='radio' name='{r}' id='{n}' value='{v}' {c}/>"
+		  "{i}</label><br/>");
+
+	s.replace("{v}", info);		//configShape[cfgid].cfg_val.as_str);
+
+	if (*configShape[cfgid].cfg_val.as_uint == 1)
+	{
+		s.replace("{c}", F("checked"));
+	}
+	else
+	{
+		s.replace("{c}", emptyString);
+	};
+
+	s.replace("{i}", info);
+	s.replace("{r}", radio_groupName);		//String(configShape[cfgid].cfg_key()));
+
+	if (!linebreak)
+	{
+		s.replace("<br/>", emptyString);
+	}
+
+	return s;
+}
+#endif
 
 /*
   Input:
@@ -2794,8 +2903,15 @@ static void webserver_root()
  *****************************************************************/
 static void webserver_config_send_body_get(String &page_content)
 {
+#if defined(false)	// defined(false) = disable radio button group. FFu.
+	auto add_form_radiobutton = [&page_content](const ConfigShapeId cfgid, constString radio_groupID, const String &info)
+	{// Lambda define to add a radiobutton form element.
+		page_content += form_radiobutton(cfgid, radio_groupID, info, true);
+	};
+#endif
+
 	auto add_form_checkbox = [&page_content](const ConfigShapeId cfgid, const String &info)
-	{
+	{// Lambda define to add a checkbox form element.
 		page_content += form_checkbox(cfgid, info, true);
 	};
 
@@ -2966,11 +3082,14 @@ static void webserver_config_send_body_get(String &page_content)
 
 	server.sendContent(page_content);
 
+	// tabblad 3: Sensors
 	page_content = tmpl(FPSTR(WEB_DIV_PANEL), String(3));
 
-	add_form_checkbox_sensor(Config_sen5x_read, FPSTR(INTL_SEN5X));
+	//add_form_checkbox_sensor(Config_sen5x_read, FPSTR(INTL_SEN5X));		// SEN5X, PM
+	page_content += form_select_SensorModel();								// select: NONE or SEN5X or SEN65, PM
+	page_content += FPSTR(WEB_BR_LF_B);
 	page_content += FPSTR(WEB_NBSP_NBSP);
-	add_form_checkbox_sensor(Config_sen5x_on, FPSTR(INTL_SEN5X_ON));
+	add_form_checkbox_sensor(Config_sen5x_on, FPSTR(INTL_SENSOR_FAN_ON));
 
 	page_content += FPSTR(TABLE_TAG_OPEN);
 	page_content += form_select_mode_SEN5PM();
@@ -3052,6 +3171,7 @@ static void webserver_config_send_body_get(String &page_content)
 	// Paginate page after ~ 1500 Bytes
 	server.sendContent(page_content);
 
+	// Tabblad 4: APIs
 	page_content = tmpl(FPSTR(WEB_DIV_PANEL), String(4));
 
 	page_content += tmpl(FPSTR(INTL_SEND_TO), F("APIs"));
@@ -3094,28 +3214,43 @@ static void webserver_config_send_body_get(String &page_content)
 	add_form_input(page_content, Config_user_custom, FPSTR(INTL_USER), LEN_USER_CUSTOM - 1);
 	add_form_input(page_content, Config_pwd_custom, FPSTR(INTL_PASSWORD), LEN_CFG_PASSWORD - 1);
 	page_content += FPSTR(TABLE_TAG_CLOSE_BR);
-	//page_content += FPSTR(BR_TAG);
 	
 	server.sendContent(page_content);
+	page_content = emptyString;
 
 	// Add MQTT
 	// Test page_content = emptyString;
-	page_content = emptyString;
 	page_content += FPSTR(BR_TAG);
 	page_content += F("<hr/>");
 	page_content += form_checkbox(Config_send2mqtt, FPSTR(INTL_SEND_TO_MQTT), false);
 	page_content += FPSTR(BR_TAG);
 	
 	page_content += FPSTR(TABLE_TAG_OPEN);
+	page_content += FPSTR(WEB_BR_LF_B);						// bold display
+	page_content += FPSTR("MQTT server 1:");
+	page_content += FPSTR(WEB_B_BR);
 	add_form_input(page_content, Config_mqtt_server, FPSTR(INTL_SERVER), LEN_HOST_CUSTOM - 1);
-	add_form_input(page_content, Config_mqtt_topic, FPSTR(INTL_TOPIC), LEN_URL_CUSTOM - 1);
 	add_form_input(page_content, Config_mqtt_port, FPSTR(INTL_PORT), MAX_PORT_DIGITS);
 	add_form_input(page_content, Config_mqtt_user, FPSTR(INTL_USER), LEN_USER_CUSTOM - 1);
 	add_form_input(page_content, Config_mqtt_pwd, FPSTR(INTL_PASSWORD), LEN_CFG_PASSWORD - 1);
+	add_form_input(page_content, Config_mqtt_topic, FPSTR(INTL_TOPIC), LEN_URL_CUSTOM - 1);
 	page_content += FPSTR(TABLE_TAG_CLOSE_BR);
+
+#ifdef MQTT_2_ENABLED // only for testing, not for production
+	page_content += FPSTR(TABLE_TAG_OPEN);
+	page_content += FPSTR(WEB_BR_LF_B); // Text bold display
+	page_content += FPSTR("MQTT server 2:");
+	page_content += FPSTR(WEB_B_BR);
+	add_form_input(page_content, Config_mqtt_server_2, FPSTR(INTL_SERVER), LEN_HOST_CUSTOM - 1);
+	add_form_input(page_content, Config_mqtt_port_2, FPSTR(INTL_PORT), MAX_PORT_DIGITS);
+	add_form_input(page_content, Config_mqtt_user_2, FPSTR(INTL_USER), LEN_USER_CUSTOM - 1);
+	add_form_input(page_content, Config_mqtt_pwd_2, FPSTR(INTL_PASSWORD), LEN_CFG_PASSWORD - 1);
+	add_form_input(page_content, Config_mqtt_topic_2, FPSTR(INTL_TOPIC), LEN_URL_CUSTOM - 1);
+	page_content += FPSTR(TABLE_TAG_CLOSE_BR);
+#endif
+
 	page_content += FPSTR(BR_TAG);
 	page_content += F("<hr/>");
-
 	server.sendContent(page_content);
 	// End MQTT
 
@@ -3298,7 +3433,7 @@ static void sensor_restart()
 		RCWL0516.end();
 	}
 
-	debug_outln_info(F("Restart."));
+	debug_outln_info(F("*** Restart ESP8266. ***"));
 	delay(500);
 
 	// Restart ESP from zero, to avoid memory leak and other issues.
@@ -3553,61 +3688,26 @@ static void webserver_values()
 		page_content += FPSTR(EMPTY_ROW);
 	}
 
-	if (cfg::sen5x_read)
+	if (cfg::IsSen5x_read())
 	{
-		// if (memcmp(SEN5X_type, SENSOR_SEN50, 6) == 0)
-		// {
-		// 	add_table_pm_value(FPSTR(SENSORS_SEN50), FPSTR(WEB_PM1), last_value_SEN5X_P0);
-		// 	add_table_pm_value(FPSTR(SENSORS_SEN50), FPSTR(WEB_PM25), last_value_SEN5X_P2);
-		// 	add_table_pm_value(FPSTR(SENSORS_SEN50), FPSTR(WEB_PM4), last_value_SEN5X_P4);
-		// 	add_table_pm_value(FPSTR(SENSORS_SEN50), FPSTR(WEB_PM10), last_value_SEN5X_P1);
-		// 	add_table_nc_value(FPSTR(SENSORS_SEN50), FPSTR(WEB_NC0k5), last_value_SEN5X_N05);
-		// 	add_table_nc_value(FPSTR(SENSORS_SEN50), FPSTR(WEB_NC1k0), last_value_SEN5X_N1);
-		// 	add_table_nc_value(FPSTR(SENSORS_SEN50), FPSTR(WEB_NC2k5), last_value_SEN5X_N25);
-		// 	add_table_nc_value(FPSTR(SENSORS_SEN50), FPSTR(WEB_NC4k0), last_value_SEN5X_N4);
-		// 	add_table_nc_value(FPSTR(SENSORS_SEN50), FPSTR(WEB_NC10), last_value_SEN5X_N10);
-		// 	add_table_value(FPSTR(SENSORS_SEN50), FPSTR(WEB_TPS), check_display_value(last_value_SEN5X_TS, -1, 1, 0), "µm");
-		// 	page_content += FPSTR(EMPTY_ROW);
-		// }
-
-		// if (memcmp(SEN5X_type, SENSOR_SEN54, 6) == 0)
-		// {
-		// 	add_table_pm_value(FPSTR(SENSORS_SEN54), FPSTR(WEB_PM1), last_value_SEN5X_P0);
-		// 	add_table_pm_value(FPSTR(SENSORS_SEN54), FPSTR(WEB_PM25), last_value_SEN5X_P2);
-		// 	add_table_pm_value(FPSTR(SENSORS_SEN54), FPSTR(WEB_PM4), last_value_SEN5X_P4);
-		// 	add_table_pm_value(FPSTR(SENSORS_SEN54), FPSTR(WEB_PM10), last_value_SEN5X_P1);
-		// 	add_table_nc_value(FPSTR(SENSORS_SEN54), FPSTR(WEB_NC0k5), last_value_SEN5X_N05);
-		// 	add_table_nc_value(FPSTR(SENSORS_SEN54), FPSTR(WEB_NC1k0), last_value_SEN5X_N1);
-		// 	add_table_nc_value(FPSTR(SENSORS_SEN54), FPSTR(WEB_NC2k5), last_value_SEN5X_N25);
-		// 	add_table_nc_value(FPSTR(SENSORS_SEN54), FPSTR(WEB_NC4k0), last_value_SEN5X_N4);
-		// 	add_table_nc_value(FPSTR(SENSORS_SEN54), FPSTR(WEB_NC10), last_value_SEN5X_N10);
-		// 	add_table_value(FPSTR(SENSORS_SEN54), FPSTR(WEB_TPS), check_display_value(last_value_SEN5X_TS, -1, 1, 0), "µm");
-		// 	page_content += FPSTR(EMPTY_ROW);
-		// 	add_table_t_value(FPSTR(SENSORS_SEN54), FPSTR(INTL_TEMPERATURE), last_value_SEN5X_T);
-		// 	add_table_h_value(FPSTR(SENSORS_SEN54), FPSTR(INTL_HUMIDITY), last_value_SEN5X_H);
-		// 	page_content += FPSTR(EMPTY_ROW);
-		// 	add_table_value(FPSTR(SENSORS_SEN54), FPSTR(INTL_VOC), check_display_value(last_value_SEN5X_VOC, -1.0, 2, 0), "(index)");
-		// 	page_content += FPSTR(EMPTY_ROW);
-		// }
-
-		if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
+		//if (IsSensirionModel())		// SEN5X_type, SENSOR_SEN55, 6) == 0
 		{
-			add_table_pm_value(FPSTR(SENSORS_SEN55), FPSTR(WEB_PM1), last_value_SEN5X_P0);
-			add_table_pm_value(FPSTR(SENSORS_SEN55), FPSTR(WEB_PM25), last_value_SEN5X_P2);
-			add_table_pm_value(FPSTR(SENSORS_SEN55), FPSTR(WEB_PM4), last_value_SEN5X_P4);
-			add_table_pm_value(FPSTR(SENSORS_SEN55), FPSTR(WEB_PM10), last_value_SEN5X_P1);
-			add_table_nc_value(FPSTR(SENSORS_SEN55), FPSTR(WEB_NC0k5), last_value_SEN5X_N05);
-			add_table_nc_value(FPSTR(SENSORS_SEN55), FPSTR(WEB_NC1k0), last_value_SEN5X_N1);
-			add_table_nc_value(FPSTR(SENSORS_SEN55), FPSTR(WEB_NC2k5), last_value_SEN5X_N25);
-			add_table_nc_value(FPSTR(SENSORS_SEN55), FPSTR(WEB_NC4k0), last_value_SEN5X_N4);
-			add_table_nc_value(FPSTR(SENSORS_SEN55), FPSTR(WEB_NC10), last_value_SEN5X_N10);
-			add_table_value(FPSTR(SENSORS_SEN55), FPSTR(WEB_TPS), check_display_value(last_value_SEN5X_TS, -1, 1, 0), F("µm"));
+			add_table_pm_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(WEB_PM1), last_value_SEN5X_P0);
+			add_table_pm_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(WEB_PM25), last_value_SEN5X_P2);
+			add_table_pm_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(WEB_PM4), last_value_SEN5X_P4);
+			add_table_pm_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(WEB_PM10), last_value_SEN5X_P1);
+			add_table_nc_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(WEB_NC0k5), last_value_SEN5X_N05);
+			add_table_nc_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(WEB_NC1k0), last_value_SEN5X_N1);
+			add_table_nc_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(WEB_NC2k5), last_value_SEN5X_N25);
+			add_table_nc_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(WEB_NC4k0), last_value_SEN5X_N4);
+			add_table_nc_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(WEB_NC10), last_value_SEN5X_N10);
+			add_table_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(WEB_TPS), check_display_value(last_value_SEN5X_TS, -1, 1, 0), F("µm"));
 			page_content += FPSTR(EMPTY_ROW);
-			add_table_t_value(FPSTR(SENSORS_SEN55), FPSTR(INTL_TEMPERATURE), last_value_SEN5X_T);
-			add_table_h_value(FPSTR(SENSORS_SEN55), FPSTR(INTL_HUMIDITY), last_value_SEN5X_H);
+			add_table_t_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(INTL_TEMPERATURE), last_value_SEN5X_T);
+			add_table_h_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(INTL_HUMIDITY), last_value_SEN5X_H);
 			page_content += FPSTR(EMPTY_ROW);
-			add_table_value(FPSTR(SENSORS_SEN55), FPSTR(INTL_VOC), check_display_value(last_value_SEN5X_VOC, -1.0, 2, 0), FPSTR(INTL_VOC_LABLE));
-			add_table_value(FPSTR(SENSORS_SEN55), FPSTR(INTL_NOX), check_display_value(last_value_SEN5X_NOX, -1.0, 2, 0), FPSTR(INTL_NOX_LABLE));
+			add_table_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(INTL_VOC), check_display_value(last_value_SEN5X_VOC, -1.0, 2, 0), FPSTR(INTL_VOC_LABLE));
+			add_table_value(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), FPSTR(INTL_NOX), check_display_value(last_value_SEN5X_NOX, -1.0, 2, 0), FPSTR(INTL_NOX_LABLE));
 			page_content += FPSTR(EMPTY_ROW);
 		}
 	}
@@ -3812,7 +3912,7 @@ static void webserver_status()
 		add_table_row_from_value(page_content, FPSTR(SENSORS_NPM), String(F("Version: ")) + last_value_NPM_version);
 		add_table_row_from_value(page_content, F("Temperature offset: "), String(cfg::scd30_temp_correction) + String("°C"));
 		add_table_row_from_value(page_content, FPSTR(INTL_NPM_FULLTIME), cfg::npm_fulltime ? F("Enabled") : F("Disabled"));
-		add_table_row_from_value(page_content, FPSTR(INTL_NPM_HEATER_MODE), ((NPM_HEATER_MODE)cfg::npm_heater_mode != NPM_HEATER_MODE::HEATING_CONTROL ? NPM_HEATER_MODE_NAME[cfg::npm_heater_mode] 
+		add_table_row_from_value(page_content, FPSTR(INTL_NPM_HEATER_MODE), ((NPM_HEATER_MODE)cfg::npm_heater_mode != NPM_HEATER_MODE::HEATING_CONTROL ? NPM_Heater::NPM_HEATER_MODE_NAME[cfg::npm_heater_mode] 
 																																					   : String(FPSTR(INTL_NPM_HEATER_ELEMENT)) + (Is_Heater_ModeOn ? String(FPSTR(INTL_ON))
 																																																					: String(FPSTR(INTL_OFF)))) );
 	}
@@ -3859,25 +3959,20 @@ static void webserver_status()
 		//add_table_row_from_value(page_content, F("CO₂ offset"), String( settingVal) + String(" ppm"));
 	}
 
-	if (cfg::sen5x_read)
+	if (cfg::IsSen5x_read())
 	{// Display Sen5x settings.
-		// if (memcmp(SEN5X_type, SENSOR_SEN54, 6) == 0)
-		// {
-		// 	//String manufacturer = F("Sensirion ") + String(SENSORS_SEN54);
-		// 	add_table_row_from_value(page_content, FPSTR((String(MANUFACTURER) + String(SENSORS_SEN54)).c_str()), emptyString);
-		// }
-		// else
+
 		{
 			//String manufacturer = F("Sensirion ") + String(SENSORS_SEN55);
-			add_table_row_from_value(page_content, FPSTR((String(MANUFACTURER) + String(SENSORS_SEN55)).c_str()), emptyString);
+			add_table_row_from_value(page_content, FPSTR( (String(MANUFACTURER) + SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str() ), emptyString);
 		}
 
 		float offsetTemp;
-		sen5x.getTemperatureOffsetSimple(offsetTemp);
+		m_sensirionSensor->getTemperatureOffsetSimple(offsetTemp);
 		versionHtml = F("Temperature offset: ");
 		versionHtml += String(offsetTemp,1) + String("°C");
 		versionHtml += String( BR_TAG);
-		versionHtml += FPSTR(INTL_SEN5X_ON);
+		versionHtml += FPSTR(INTL_SENSOR_FAN_ON);
 		versionHtml += cfg::sen5x_on == true ? F(": Enabled") : F(": Disabled");
 		//versionHtml += String( BR_TAG);
 
@@ -3933,20 +4028,11 @@ static void webserver_status()
 		add_table_row_from_value(page_content, FPSTR(SENSORS_IPS), String(IPS_error_count));
 	}
 
-	if (cfg::sen5x_read)
-	{// display SEN5x reading Errors.
-		// if(memcmp(SEN5X_type, SENSOR_SEN50,6) == 0)
-		// {
-		// 	add_table_row_from_value(page_content, FPSTR(SENSORS_SEN50), String(SEN5X_read_error_counter));
-		// }
-		// else if (memcmp(SEN5X_type, SENSOR_SEN54, 6) == 0)
-		// {
-		// 	add_table_row_from_value(page_content, FPSTR(SENSORS_SEN54), String(SEN5X_read_error_counter));
-		// }
-		// else 
-		if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
+	if (cfg::IsSen5x_read())
+	{// display SEN55/SEN65 reading Errors.
+		//if (IsSensirionModel())	//(memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
 		{
-			add_table_row_from_value(page_content, FPSTR(SENSORS_SEN55), String(SEN5X_read_error_counter));
+			add_table_row_from_value(page_content, FPSTR(SENSIRION::SENSIRION_NAME[cfg::sen5x_read].c_str()), String(SEN5X_read_error_counter));
 		}
 	}
 
@@ -4168,7 +4254,7 @@ static void webserver_data_json()
 	{
 		s1 = last_data_string;
 
-		if (cfg::sen5x_read && !is_Sen5x_init_failed)
+		if (cfg::IsSen5x_read() && !is_Sen5x_init_failed)
 		{// Add VOC index to sensor data.json string.
 			s1.remove(s1.length() - 2);	// remove "]}"
 			s1 += ',';
@@ -4218,7 +4304,7 @@ static void webserver_metrics_endpoint()
 
 	data_sensemap = last_data_string;
 
-	if (cfg::sen5x_read && !is_Sen5x_init_failed)
+	if (cfg::IsSen5x_read() && !is_Sen5x_init_failed)
 	{// Add VOC index to sensor page_content string.
 		data_sensemap.remove(data_sensemap.length() - 2); // remove "]}"
 		data_sensemap += ',';
@@ -4350,14 +4436,17 @@ static void setup_webserver()
 	server.begin();
 }
 
-/// @brief
+/// @brief 
 ///
 ///	Set Up connection to a MQTT broker.
 ///	like Mosquitto.
 ///
 /// @param host 
 /// @param port 
-static void setup_mqtt_broker(const char *host, const int port)
+/// @param user 
+/// @param pwd 
+/// @param topic 
+static void setup_mqtt_broker(const char *host, const int port, const char *user, const char *pwd, const char *topic)
 {
 #if defined(ESP8266)
 	if ( !mqtt_client.connected())
@@ -4365,7 +4454,7 @@ static void setup_mqtt_broker(const char *host, const int port)
 		debug_outln_info(F("\n** Start Initialize MQTT Broker connection **"));
 
 		// ++ Set-Up Topic header for MQTT Broker
-		String _header = String(cfg::mqtt_topic) + "/" + String(mqtt_client_id);
+		String _header = String(topic) + "/" + String(mqtt_client_id);
 		if (_header.length() <= LEN_MQTT_LARGE_HEADER)
 		{
 			strcpy(mqtt_header, _header.c_str());
@@ -4380,7 +4469,7 @@ static void setup_mqtt_broker(const char *host, const int port)
 
 		String mess_off = INTL_OFFLINE;
 
-		if (mqtt_client.connect(mqtt_client_id, cfg::mqtt_user, cfg::mqtt_pwd, mqtt_lwt_header, 1, true, mess_off.c_str(), true))
+		if (mqtt_client.connect(mqtt_client_id, user, pwd, mqtt_lwt_header, 1, true, mess_off.c_str(), true))
 		{
 			// Set keep Alive setKeepAlive() default 15 seconds
 			// cfg::sending_intervall_ms delen door 1000 * 2 = eepalive
@@ -4611,7 +4700,8 @@ static void wifiConfig()
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_info_bool(F("PPD: "), cfg::ppd_read);
 	debug_outln_info_bool(F("SDS: "), cfg::sds_read);
-	debug_outln_info_bool(F("SEN5X: "), cfg::sen5x_read);
+	// debug_outln_info_bool(FPSTR((F(INTL_SENSIRION_MODEL) + SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()), cfg::IsSen5x_read());
+	debug_outln_info_bool(F("SEN55/SEN65: "), cfg::IsSen5x_read());
 	debug_outln_info_bool(F("PMS: "), cfg::pms_read);
 	debug_outln_info_bool(F("HPM: "), cfg::hpm_read);
 	debug_outln_info_bool(F("SPS30: "), cfg::sps30_read);
@@ -4623,9 +4713,9 @@ static void wifiConfig()
 	debug_outln_info_bool(F("BMP: "), cfg::bmp_read);
 	debug_outln_info_bool(F("BMX280: "), cfg::bmx280_read);
 	debug_outln_info_bool(F("SCD30: "), cfg::scd30_read);
-	debug_outln_info_bool(F("SHT3X: "), cfg::sht3x_read);			// SEN3X: Temperature, Humidity
+	debug_outln_info_bool(F("SHT3X: "), cfg::sht3x_read);				// SEN3X: Temperature, Humidity
 	debug_outln_info_bool(F("DNMS: "), cfg::dnms_read);
-	debug_outln_info_bool(F("SHT5X: "), cfg::sen5x_read);			// SEN5X: Temperature, Humidity, CO2 as NOx
+	debug_outln_info_bool(F("SHT5X: "), cfg::IsSen5x_read());			// SEN5X: Temperature, Humidity, CO2 as NOx
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 	debug_outln_info_bool(F("SensorCommunity: "), cfg::send2dusti);
 	debug_outln_info_bool(F("Madavi: "), cfg::send2madavi);
@@ -5012,13 +5102,22 @@ static unsigned long sendSensorCommunity(const String &data, const int pin, cons
  * send densor data to mqtt Broker.                              *
  * 																 *
 /*****************************************************************/
-static void sendmqtt(const String &data)
+static void sendmqtt(const String &data, int mqtt_Id = 1)
 {
 #if defined(ESP8266)
 
 	if ( !mqtt_client.connected())
 	{// after x time MQTT connection will be lost wifi connection.... but why ????
-		setup_mqtt_broker( cfg::mqtt_server, cfg::mqtt_port);
+		if( mqtt_Id == 1)
+		{
+			setup_mqtt_broker( cfg::mqtt_server, cfg::mqtt_port, cfg::mqtt_user, cfg::mqtt_pwd, cfg::mqtt_topic);
+		}
+#ifdef MQTT_2_ENABLED // only for testing, not for production
+		else
+		{
+			setup_mqtt_broker( cfg::mqtt_server_2, cfg::mqtt_port_2, cfg::mqtt_user_2, cfg::mqtt_pwd_2, cfg::mqtt_topic_2);
+		}
+#endif
 	}
 
 	if (mqtt_client.connected())
@@ -6489,22 +6588,10 @@ static void fetchSensorSEN5X(String &s)
 	RESERVE_STRING(result_SEN5X, 10);
 	result_SEN5X = F("SEN55_");
 
-	// if (memcmp(SEN5X_type, SENSOR_SEN50, 6) == 0)
-	// {
-	// 	//result_SEN5X = F("SEN50_");
-	// 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_SEN50));
-	// }
-
-	// if (memcmp(SEN5X_type, SENSOR_SEN54, 6) == 0)
-	// {
-	// 	//result_SEN5X = F("SEN54_");
-	// 	debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_SEN54));
-	// }
-
-	if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
+	//if (IsSensirionModel())		//(memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
 	{
 		//result_SEN5X = F("SEN55_");
-		debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_SEN55));
+		debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()));
 	}
 
 	last_value_SEN5X_P0 = value_SEN5X_P0 / SEN5X_measurement_count;
@@ -6530,8 +6617,8 @@ static void fetchSensorSEN5X(String &s)
 	add_Value2Json(s, FPSTR((result_SEN5X + F("N4")).c_str()),  F("NC4.0: "), last_value_SEN5X_N4);
 	add_Value2Json(s, FPSTR((result_SEN5X + F("N10")).c_str()), F("NC10: "), last_value_SEN5X_N10);
 
-	debug_outln_info( FPSTR((result_SEN5X + "read counter: ").c_str()), String(SEN5X_read_counter));
-	debug_outln_info( FPSTR((result_SEN5X + "read error counter: ").c_str()), String(SEN5X_read_error_counter));
+	debug_outln_info( FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read] + F(" read counter: ")).c_str()), String(SEN5X_read_counter));
+	debug_outln_info( FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read] + F(" read error counter: ")).c_str()), String(SEN5X_read_error_counter));
 
 	SEN5X_read_counter = 0;
 	SEN5X_read_error_counter = 0;
@@ -6541,19 +6628,9 @@ static void fetchSensorSEN5X(String &s)
 
 	debug_outln_info(FPSTR(DBG_TXT_SEP));
 
-	// if (memcmp(SEN5X_type, SENSOR_SEN50, 6) == 0)
-	// {
-	// 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_SEN50));
-	// }
-
-	// if (memcmp(SEN5X_type, SENSOR_SEN54, 6) == 0)
-	// {
-	// 	debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_SEN54));
-	// }
-
-	if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
+	//if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
 	{
-		debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_SEN55));
+		debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()));
 	}
 }
 
@@ -6568,7 +6645,7 @@ static void fetchSensorSEN5X(String &s)
 */
 static void fetchSensorSEN5X_THN(String &s)
 {
-	if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0 /*|| memcmp(SEN5X_type, SENSOR_SEN54, 6) == 0*/ )
+	//if (IsSensirionModel())			//if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0 /*|| memcmp(SEN5X_type, SENSOR_SEN54, 6) == 0*/ )
 	{
 		last_value_SEN5X_T = value_SEN5X_T / SEN5X_measurement_count;
 		last_value_SEN5X_H = value_SEN5X_H / SEN5X_measurement_count;
@@ -6582,7 +6659,7 @@ static void fetchSensorSEN5X_THN(String &s)
 		//result_SEN5X = F("SEN5X_");
 		String result_SEN5X = F("SEN5X_");
 
-		debug_outln_verbose(FPSTR(DBG_TXT_START_READING), result_SEN5X);
+		debug_outln_verbose(FPSTR(DBG_TXT_START_READING), SENSIRION::SENSIRION_NAME[cfg::sen5x_read].c_str());
 
 		add_Value2Json(s, FPSTR((result_SEN5X + F("temperature")).c_str()), FPSTR(DBG_TXT_TEMPERATURE), last_value_SEN5X_T);
 		add_Value2Json(s, FPSTR((result_SEN5X + F("humidity")).c_str()),    FPSTR(DBG_TXT_HUMIDITY),    last_value_SEN5X_H);
@@ -6595,7 +6672,7 @@ static void fetchSensorSEN5X_THN(String &s)
 	//	debug_outln_info( FPSTR(DBG_TXT_VOC), last_value_SEN5X_VOC);
 	// }
 
-		debug_outln_verbose(FPSTR(DBG_TXT_END_READING), result_SEN5X);
+		debug_outln_verbose(FPSTR(DBG_TXT_END_READING), SENSIRION::SENSIRION_NAME[cfg::sen5x_read].c_str());
 	}
 
 	value_SEN5X_H = value_SEN5X_T = value_SEN5X_NOX = value_SEN5X_VOC = 0.0;
@@ -6872,19 +6949,19 @@ static void GetSen5XSensorData()
 		{
 			if (!cfg::sen5x_on)
 			{
-				debug_outln_verbose(F("SEN5X STOP Measurement. time: "), String(msSince(starttime)));
-	
-				sen5x.stopMeasurement();
+				debug_outln_verbose(FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read] + F(" STOP Measurement.")).c_str()), emptyString);
+				m_sensirionSensor->stopMeasurement();
 			}
 
-				is_SEN5X_running = false;
+			is_SEN5X_running = false;
 		}
 	}
 	else if (is_SEN5X_running && (msSince(starttime) - SEN5X_read_timer) > SEN5X_WAITING_AFTER_LAST_READ)
 	{
-		debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR(SENSORS_SEN55));
+		debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()));
 		debug_outln_verbose(FPSTR(DBG_TXT_SEP));
-		debug_outln_verbose(F("SEN5X START sensor readings. time: "), String((msSince(starttime) - (SEN5X_read_timer + (SEN5X_WAITING_AFTER_LAST_READ - SAMPLETIME_SEN5X_MS)))) + F(" msec.") );
+		debug_outln_verbose( FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read] + F(" START sensor readings. time: ")).c_str()), 
+							 String((msSince(starttime) - (SEN5X_read_timer + (SEN5X_WAITING_AFTER_LAST_READ - SAMPLETIME_SEN5X_MS)))) + F(" msec.") );
 
 		uint16_t error;
 		char errorMessage[256];
@@ -6904,7 +6981,7 @@ static void GetSen5XSensorData()
 		float vocIndex;
 		float noxIndex;
 
-		error = sen5x.readMeasuredPmValues(massConcentrationPm1p0, massConcentrationPm2p5, massConcentrationPm4p0, massConcentrationPm10p0,
+		error = m_sensirionSensor->readMeasuredPmValues(massConcentrationPm1p0, massConcentrationPm2p5, massConcentrationPm4p0, massConcentrationPm10p0,
 										   numberConcentrationPm0p5, numberConcentrationPm1p0, numberConcentrationPm2p5, 
 										   numberConcentrationPm4p0, numberConcentrationPm10p0, 
 										   typicalParticleSize);
@@ -6935,7 +7012,7 @@ static void GetSen5XSensorData()
 			debug_outln_verbose(F("PM10 (sec.) : "), String(massConcentrationPm10p0));
 		}
 
-		error = sen5x.readMeasuredValues(massConcentrationPm1p0, massConcentrationPm2p5, massConcentrationPm4p0, massConcentrationPm10p0,
+		error = m_sensirionSensor->readMeasuredValues(massConcentrationPm1p0, massConcentrationPm2p5, massConcentrationPm4p0, massConcentrationPm10p0,
 										 ambientHumidity, ambientTemperature, 
 										 vocIndex, noxIndex);
 
@@ -6968,7 +7045,7 @@ static void GetSen5XSensorData()
 		SEN5X_read_timer = msSince(starttime + (SEN5X_WAITING_AFTER_LAST_READ - SAMPLETIME_SEN5X_MS));
 		
 		debug_outln_verbose(FPSTR(DBG_TXT_SEP));
-		debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR(SENSORS_SEN55));
+		debug_outln_verbose(FPSTR(DBG_TXT_END_READING), FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()));
 	}
 	else
 	{
@@ -6976,8 +7053,8 @@ static void GetSen5XSensorData()
 		{
 			if (!cfg::sen5x_on)
 			{
-				debug_outln_verbose(F("SEN5X START Measurement. Time: "), String(msSince(starttime)));
-				sen5x.startMeasurement();
+				debug_outln_verbose( FPSTR( (SENSIRION::SENSIRION_NAME[cfg::sen5x_read] + F(" START Measurement.")).c_str() ), emptyString);	// String(msSince(starttime));
+				m_sensirionSensor->startMeasurement();
 			}
 
 			SEN5X_read_timer = msSince(starttime);
@@ -7614,24 +7691,8 @@ static void display_values()
 		nc050_value = last_value_IPS_N5;
 	}
 
-	if (cfg::sen5x_read)
+	if (cfg::IsSen5x_read())
 	{
-		// if (memcmp(SEN5X_type, SENSOR_SEN50, 6) == 0)
-		// {
-		// 	pm01_sensor = FPSTR(SENSORS_SEN50);
-		// 	pm10_sensor = FPSTR(SENSORS_SEN50);
-		// 	pm25_sensor = FPSTR(SENSORS_SEN50);
-		// 	t_sensor = h_sensor = voc_sensor = FPSTR(SENSORS_SEN50);
-		// }
-
-		// if (memcmp(SEN5X_type, SENSOR_SEN54, 6) == 0)
-		// {
-		// 	pm01_sensor = FPSTR(SENSORS_SEN54);
-		// 	pm10_sensor = FPSTR(SENSORS_SEN54);
-		// 	pm25_sensor = FPSTR(SENSORS_SEN54);
-		// 	t_sensor = h_sensor = voc_sensor = FPSTR(SENSORS_SEN54);
-		// }
-
 		if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
 		{
 			pm01_sensor = FPSTR(SENSORS_SEN55);
@@ -7754,7 +7815,7 @@ static void display_values()
 		screens[screen_count++] = 11; // A VOIR POUR AJOUTER DES ÈCRANS
 	}
 
-	if (cfg::sen5x_read)
+	if (cfg::IsSen5x_read())
 	{
 		screens[screen_count++] = 12;
 		screens[screen_count++] = 13;
@@ -8209,35 +8270,57 @@ static bool initBMX280(char addr)
 }
 
 /*****************************************************************
-   Init SEN5X Sensor
+   Init SEN5X/SEN65 Sensor.
  *****************************************************************/
-static void initSEN5X()
+static void initSensirionSensor()
 {
-	debug_outln(F("Start Initialize SEN5X sensor."), DEBUG_MIN_INFO);
+	debug_outln(F("Start Initialize Sensirion sensor."), DEBUG_MIN_INFO);
 
-	sen5x.begin(Wire);
+	if (m_sensirionSensor > nullptr)
+	{ // after restart of ESP8266 the pointer is not nullptr, but the object is deleted. So we need to delete it first.
+		delete m_sensirionSensor; 		// Calls Derived's destructor, then Base's destructor to releases the allocated memory.
+		m_sensirionSensor = nullptr;
+	}
+
+	if (cfg::sen5x_read == SENSIRION_MODEL::SEN55)
+	{// SEN5X sensor (PM, RH & T, VOC, NOx)
+		m_sensirionSensor = new SensirionI2cSen5xAdapter();// Create an instance of the derived class and assign it to the interface pointer.
+	}
+	else if (cfg::sen5x_read == SENSIRION_MODEL::SEN65)
+	{// SEN65 sensor (PM, RH & T, VOC, NOx), (new: 9-7-2026)
+	 	m_sensirionSensor = new SensirionI2cSen65Adapter();
+	}
+
+	if (m_sensirionSensor == nullptr)
+	{
+		debug_outln_error(F("Sensirion Sensor initialization failed!"));
+		is_Sen5x_init_failed = true;
+		return;
+	}
+
+	m_sensirionSensor->begin(Wire);
 
 	uint16_t error;
 	char errorMessage[256];
 
-	error = sen5x.deviceReset();
+	error = m_sensirionSensor->deviceReset();
 	if (error)
 	{
-		Debug.print(F("SEN5X_DeviceReset() return Error: "));
+		Debug.print(m_sensirionSensor->getModelName() + F("_DeviceReset(), return Error -> "));
 		errorToString(error, errorMessage, 256);
 		Debug.println(errorMessage);
-		debug_outln_error(F("Check SEN5x sensor is NOT connected!"));
+		debug_outln_error( FPSTR( (m_sensirionSensor->getModelName() + F(" sensor is NOT connected!")).c_str() ));
 
 		is_Sen5x_init_failed = true;
 		return;
 	}
 
 #ifdef USE_PRODUCT_INFO
-	printModuleVersions();
-	printSerialNumber();
+	printSensirionSensorModuleVersions();
+	printSensirionSensorSerialNumber();
 #endif
 
-	if (sen5x.setFanAutoCleaningInterval(SEN5X_AUTO_CLEANING_INTERVAL) != 0)
+	if (m_sensirionSensor->setFanAutoCleaningInterval(SEN5X_AUTO_CLEANING_INTERVAL) != 0)
 	{
 		debug_outln_error(F("setting of Auto Cleaning Intervall SEN5X failed!"));
 		is_Sen5x_init_failed = true;
@@ -8247,7 +8330,7 @@ static void initSEN5X()
     // Adjust tempOffset to account for additional temperature offsets
     // exceeding the SEN5X module's self heating.
     float tempOffset = readCorrectionOffset(cfg::scd30_temp_correction);		//String(cfg::scd30_temp_correction).toFloat();
-    error = sen5x.setTemperatureOffsetSimple(tempOffset);
+    error = m_sensirionSensor->setTemperatureOffsetSimple(tempOffset);
 
     if (error) 
 	{
@@ -8259,10 +8342,10 @@ static void initSEN5X()
 	{
         Debug.print(F("Temperature Offset = "));
         Debug.print(tempOffset);
-        Debug.println(F(" °C. (SEN54/SEN55 only)"));
+        Debug.println(F(" °C. (SEN55/SEN65)"));
     }
 
-	error = sen5x.startMeasurement();
+	error = m_sensirionSensor->startMeasurement();
 
 	if (error)
 	{
@@ -8273,15 +8356,22 @@ static void initSEN5X()
 	}
 	else
 	{
-		debug_outln_info(F("Emulate SEN55:"));
+		debug_outln_info(F("Emulate ") + m_sensirionSensor->getModelName() + F(":"));
 		debug_outln_info(F("\tPM - "), FPSTR(cfg::sen5x_sym_pm));
 		debug_outln_info(F("\tTH - "), FPSTR(cfg::sen5x_sym_th));
 
-		debug_outln(F("SEN5X sensor active. Sensor Fan Cleaning and Warm-Up for the first Measurement."), DEBUG_MIN_INFO);
-		sen5x.startFanCleaning();
+		debug_outln( m_sensirionSensor->getModelName() + F(" sensor active. Sensor Fan Cleaning and Warm-Up for the first Measurement."), DEBUG_MIN_INFO);
+		m_sensirionSensor->startFanCleaning();
 		is_SEN5X_running = false;
 	}
 }
+
+/// @brief : Sensirion SEN55/SEN65 sensor check.  (String sen5x_type = emptyString)
+/// @return : true = ok, false = error.
+// bool IsSensirionModel()
+// {
+// 	return (memcmp(SEN5X_type, SENSIRION::SENSIRION_NAME[cfg::sen5x_read].c_str(), 6) == 0);
+// }
 
 /*****************************************************************
    Init SPS30 PM Sensor
@@ -8359,7 +8449,7 @@ static void initNEXTPM()
             delay(15000);        // wait a bit to be sure Tera Next PM is ready to receive instructions.
         }
 
-		debug_outln_info( F("NPM Heater Mode setting: "), F("\"") + NPM_HEATER_MODE_NAME[cfg::npm_heater_mode] + F("\""));
+		debug_outln_info( F("NPM Heater Mode setting: "), F("\"") + NPM_Heater::NPM_HEATER_MODE_NAME[cfg::npm_heater_mode] + F("\""));
 
         if( (NPM_HEATER_MODE)cfg::npm_heater_mode > NPM_HEATER_MODE::NONE)
         {
@@ -8397,7 +8487,7 @@ static void initNEXTPM()
         {
             is_NPM_running = true;
 
-            debug_outln_info( F("NPM sensor ") + String((INTL_SEN5X_ON)));
+            debug_outln_info( F("NPM sensor ") + String((INTL_SENSOR_FAN_ON)));
         }
 
         npm_init_failed = false;
@@ -8564,10 +8654,10 @@ static void powerOnTestSensors()
 		is_IPS_running = false;
 	}
 
-	if (cfg::sen5x_read)
+	if (cfg::IsSen5x_read())
 	{
-		debug_outln_info(F("Read SEN5X..."));
-		initSEN5X();
+		debug_outln_info(F("Initialize Sensirion Sensor..."));
+		initSensirionSensor();
 	}
 
 	if (cfg::sps30_read)
@@ -8682,7 +8772,7 @@ static void powerOnTestSensors()
 }
 
 /*
-	Display list of API's servers
+	Display list of API's servers.
 */
 static void logEnabledAPIs()
 {
@@ -8716,12 +8806,25 @@ static void logEnabledAPIs()
 	
 	if (cfg::send2mqtt)
 	{
-		debug_outln_info(F("\tMQTT broker: "), String(cfg::mqtt_server));
-		debug_outln_info(F("\t\t- Port: "), String(cfg::mqtt_port));
-		debug_outln_info(F("\t\t- User: "), String(cfg::mqtt_user));
-//		debug_outln_info(F("\t\t- Pasword: "), String(cfg::mqtt_pwd));
-		debug_outln_info(F("\t\t- Topic: "), String(cfg::mqtt_topic));
-		debug_outln_info(F("\t\t- MQTT-client: "), String(mqtt_client_id));
+		debug_outln_info(F("\tMQTT broker 1: "), String(cfg::mqtt_server));
+		debug_outln_info(F("\t\t\t- Port: "), String(cfg::mqtt_port));
+		debug_outln_info(F("\t\t\t- User: "), String(cfg::mqtt_user));
+//		debug_outln_info(F("\t\t\t- Pasword: "), String(cfg::mqtt_pwd));
+		debug_outln_info(F("\t\t\t- Topic: "), String(cfg::mqtt_topic));
+
+#ifdef MQTT_2_ENABLED // only for testing, not for production
+		if (cfg::mqtt_server_2[0] != WLANPWD[0])
+		{ // only in WiFi mode, second MQTT broker is configured.
+			debug_outln_info(F("\n\tMQTT broker 2: "), String(cfg::mqtt_server_2));
+			debug_outln_info(F("\t\t\t- Port 2: "), String(cfg::mqtt_port_2));
+			debug_outln_info(F("\t\t\t- User 2: "), String(cfg::mqtt_user_2));
+//			debug_outln_info(F("\t\t\t- Pasword 2: "), String(cfg::mqtt_pwd_2));
+			debug_outln_info(F("\t\t\t- Topic 2: "), String(cfg::mqtt_topic_2));
+		}
+#endif
+
+		debug_outln_info(F("\n\t\t\t- MQTT-client: "), String(mqtt_client_id));
+		debug_outln_info(F("\t\t\t- Token: "), String(cfg::mqtt_token));
 	}
 
 	if (cfg::send2aircms)
@@ -8822,20 +8925,20 @@ static unsigned long sendDataToOptionalApis(const String &data)
 	unsigned long sum_send_time = 0;
 	RESERVE_STRING(data_sensemap, XLARGE_STR);
 
-	if (cfg::sen5x_read && (!is_Sen5x_init_failed))
+	if (cfg::IsSen5x_read() && (!is_Sen5x_init_failed))
 	{
 		data_sensemap = data;
 		data_sensemap.replace("SEN55", cfg::sen5x_sym_pm);	 	// replace PM Sensor Type Name.
 		data_sensemap.replace("SEN5X", cfg::sen5x_sym_th);		// replace temp/hummidity/NOx Sensor Type Name.
 
-		debug_outln_verbose(F("SEN55: sendDataToOptionalApis data:\n"), data_sensemap);
+		debug_outln_verbose( FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read] + F(": sendDataToOptionalApis data:\n")).c_str()), data_sensemap);
 	}
 
 	if (cfg::send2madavi)
 	{
 		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("madavi.de: "));
 
-		if (cfg::sen5x_read && (!is_Sen5x_init_failed))
+		if (cfg::IsSen5x_read() && (!is_Sen5x_init_failed))
 		{
 			sum_send_time += sendData(LoggerMadavi, data_sensemap, 0, HOST_MADAVI, URL_MADAVI);
 		}
@@ -8851,7 +8954,7 @@ static unsigned long sendDataToOptionalApis(const String &data)
 
 		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("opensensemap: "));
 
-		if (cfg::sen5x_read && (!is_Sen5x_init_failed))
+		if (cfg::IsSen5x_read() && (!is_Sen5x_init_failed))
 		{
 			RESERVE_STRING(data_2_sensemap, LARGE_STR);
 			data_2_sensemap = data_sensemap;
@@ -8893,7 +8996,7 @@ static unsigned long sendDataToOptionalApis(const String &data)
 	{ // for feinstaub program developt by chillibits.com
 		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("Server FeinStaub App: "));
 
-		if (cfg::sen5x_read && (!is_Sen5x_init_failed))
+		if (cfg::IsSen5x_read() && (!is_Sen5x_init_failed))
 		{
 			sum_send_time += sendData(LoggerFSapp, data_sensemap, 0, HOST_FSAPP, URL_FSAPP);
 		}
@@ -8914,7 +9017,7 @@ static unsigned long sendDataToOptionalApis(const String &data)
 		aircms_data += "&t=";
 		aircms_data += String(ts, DEC);
 		aircms_data += F("&airrohr=");
-		aircms_data += (cfg::sen5x_read && (!is_Sen5x_init_failed)) ? data_sensemap : data;
+		aircms_data += (cfg::IsSen5x_read() && (!is_Sen5x_init_failed)) ? data_sensemap : data;
 
 		String aircms_url(FPSTR(URL_AIRCMS));
 		aircms_url += hmac1(sha1Hex(token), aircms_data + token);
@@ -8927,7 +9030,7 @@ static unsigned long sendDataToOptionalApis(const String &data)
 		debug_outln_info(FPSTR(DBG_TXT_SENDING_TO), F("custom influx db: "));
 
 		RESERVE_STRING(data_4_influxdb, LARGE_STR);
-		create_influxdb_string_from_data(data_4_influxdb, (cfg::sen5x_read && (!is_Sen5x_init_failed)) ? data_sensemap : data);
+		create_influxdb_string_from_data(data_4_influxdb, (cfg::IsSen5x_read() && (!is_Sen5x_init_failed)) ? data_sensemap : data);
 
 		sum_send_time += sendData(LoggerInflux, data_4_influxdb, 0, cfg::host_influx, cfg::url_influx);
 	}
@@ -8939,7 +9042,7 @@ static unsigned long sendDataToOptionalApis(const String &data)
 		RESERVE_STRING(data_4_custom, LARGE_STR);
 		RESERVE_STRING(data_to_send, LARGE_STR);
 
-		data_to_send = (cfg::sen5x_read && (!is_Sen5x_init_failed)) ? data_sensemap : data;
+		data_to_send = (cfg::IsSen5x_read() && (!is_Sen5x_init_failed)) ? data_sensemap : data;
 		data_to_send.remove(0, 1);
 		
 		data_4_custom = F("{\"esp8266id\": \"");
@@ -8977,7 +9080,7 @@ static unsigned long sendDataToMQTTBroker(String &data)
 		//data_sensemap.clear();
 		data_sensemap = data;
 
-		if (cfg::sen5x_read && !is_Sen5x_init_failed)
+		if (cfg::IsSen5x_read() && !is_Sen5x_init_failed)
 		{
 			String result_SEN5X = F("SEN5X_");
 
@@ -9005,6 +9108,21 @@ static unsigned long sendDataToMQTTBroker(String &data)
 		{
 			mqtt_client.loop();
 		}
+
+#ifdef MQTT_2_ENABLED // only for testing, not for production
+		if (cfg::mqtt_server_2[0] != WLANPWD[0])
+		{ // only by wifi: send mqtt data to second "MQTT Broker".
+			mqtt_client.disconnect();
+			sendmqtt(data_sensemap, 2);
+
+			if (mqtt_client.connected())
+			{
+				mqtt_client.loop();
+			}
+
+			mqtt_client.disconnect();
+		}
+#endif
 
 		sum_send_time += millis() - starttime_MQTT; //  micros() - starttime_MQTT;
 	}
@@ -9127,7 +9245,7 @@ void setup(void)
 		if (cfg::has_radarmotion)
 		{
 			// implementation of MQTT communication.
-			setup_mqtt_broker( cfg::mqtt_server, cfg::mqtt_port);
+			setup_mqtt_broker( cfg::mqtt_server, cfg::mqtt_port, cfg::mqtt_user, cfg::mqtt_pwd, cfg::mqtt_topic);
 			RCWL0516.setMQTTClient(mqtt_client, mqtt_header, mqtt_lwt_header);
 			debug_outln_info(F("RCWL_0516 => setup MQTT Client instance."));
 		}
@@ -9265,7 +9383,7 @@ void loop(void)
 		}
 	}
 
-	if (cfg::sen5x_read && (!is_Sen5x_init_failed))
+	if (cfg::IsSen5x_read() && (!is_Sen5x_init_failed))
 	{// get SEN5X sensor values.
 		GetSen5XSensorData();
 	}
@@ -9389,7 +9507,7 @@ void loop(void)
 			sum_send_time += sendSensorCommunity(result_IPS, IPS_API_PIN, FPSTR(SENSORS_IPS), "IPS_");
 		}
 
-		if (cfg::sen5x_read && (!is_Sen5x_init_failed))
+		if (cfg::IsSen5x_read() && (!is_Sen5x_init_failed))
 		{
 			int pin;
 			String result_SEN55, result_TH;
@@ -9601,6 +9719,11 @@ void loop(void)
 		{
 			twoStageOTAUpdate();
 			last_update_attempt = act_milli;
+
+			if (cfg::sen5x_read == SENSIRION_MODEL::SEN65 && !is_Sen5x_init_failed)
+			{// once a day the fan is set to the maximum speed for 10 seconds and then automatically stopped.
+				m_sensirionSensor->startFanCleaning();	
+			}
 		}
 
 		// Resetting for next sampling.
@@ -9645,7 +9768,7 @@ void loop(void)
 		{// after x time MQTT connection will be lost wifi connection.... but why ????
 			debug_outln_info(F("** RCWL0516 => MQTT Broker lost WIFI connection. **\nRetry......"));
 
-			setup_mqtt_broker( cfg::mqtt_server, cfg::mqtt_port);
+			setup_mqtt_broker( cfg::mqtt_server, cfg::mqtt_port, cfg::mqtt_user, cfg::mqtt_pwd, cfg::mqtt_topic);
 
 			// only for test, maybe FFU
 			// abonneer op MQTT broker via topic name: "LeusdenCentrum/airRohr-xxxxxxx/radar"

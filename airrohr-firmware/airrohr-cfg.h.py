@@ -24,7 +24,7 @@ Bool		npm_read
 Bool        npm_fulltime
 UInt        npm_heater_mode
 Bool		ips_read
-Bool		sen5x_read
+UInt		sen5x_read
 Bool		sen5x_on
 String		sen5x_sym_pm
 String		sen5x_sym_th
@@ -91,6 +91,11 @@ String		mqtt_user
 Password	mqtt_pwd
 String		mqtt_topic
 String		mqtt_token
+String		mqtt_server_2
+UInt		mqtt_port_2
+String		mqtt_user_2
+Password	mqtt_pwd_2
+String		mqtt_topic_2
 String		measurement_name_influx
 Bool		ssl_influx
 Bool		has_fix_ip
@@ -108,15 +113,17 @@ Bool        has_morewifi
 
 with open("airrohr-cfg.h", "w") as h:
     print("""
-
+//
 // This file is generated, please do not edit.
 // Change airrohr-cfg.h.py instead.
 // update: 29 juli 2023
 // add Bool Fix IP
-// update: 28 December 2023
+//
 // add more settings
 //
 // run python airrohr-cfg.h.py
+//
+// Update: 21 October 2026
 //
 
 #ifndef __airrohr_cfg_h
