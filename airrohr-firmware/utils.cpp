@@ -338,19 +338,34 @@ void add_Value2Json(String& res, const __FlashStringHelper* type, const __FlashS
 	add_Value2Json(res, type, String(value));
 }
 
-/// @brief 
-/// @param correction 
-/// @return 
-float readCorrectionOffset(const char* correction) 
+/// @brief
+/// @param pointer to correction[] = 0.xx format
+/// @return float value of correction
+float readCorrectionOffset(const char *correction)
 {
-	char* pEnd = nullptr;
+	char *pEnd = nullptr;
 	// Avoiding atof() here as this adds a lot (~ 9kb) of code size
 	float r = float(strtol(correction, &pEnd, 10));
-	if (pEnd && pEnd[0] == '.' && pEnd[1] >= '0' && pEnd[1] <= '9') 
-	{
-		r += (r >= 0.0f ? 1.0f : -1.0f) * ((pEnd[1] - '0') / 10.0f);
+
+	if (pEnd && pEnd[0] == '.' && pEnd[1] >= '0' && pEnd[1] <= '9')
+	{ 
+		float dec = ((pEnd[1] - '0') / 10.0f);
+
+		// check if there is a second decimal digit, if so add it to the float output.
+		if( strlen(pEnd) > 2 && pEnd[2] >= '0' && pEnd[2] <= '9') 
+		{ // correction = 2.87 => PEnd = .87 => output = 2.87
+			dec += ((pEnd[2] - '0') / 100.0f);
+		}
+
+		// correction = 2.8 => PEnd = .8 => output = 2
+		r += (r >= 0.0f ? 1.0f : -1.0f) * dec;
+
+		if (r > 0.0f && correction[0] == '-')
+		{ // in case correction = -0.87 => invert float output 0.87 to -0.87.
+			r = -r;
+		}
 	}
-	
+
 	return r;
 }
 
