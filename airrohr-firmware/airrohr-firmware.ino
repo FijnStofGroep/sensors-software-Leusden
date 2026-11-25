@@ -151,7 +151,7 @@
  * PLATFORM: Espressif 8266 (3.1.0) > NodeMCU 1.0 (ESP-12E Module)		*
  * HARDWARE: ESP8266 160MHz, 80KB RAM, 4MB Flash						*
  * RAM:     [=====     ]  47.4% (used 38868 bytes from 81920 bytes)		*
- * PROGRAM: [=======   ]  64.1% (used 669997 bytes from 1044464 bytes)	*
+ * PROGRAM: [=======   ]  64.2% (used 670105 bytes from 1044464 bytes)	*
  ************************************************************************/
 
 // VS: Convert Arduino file to C++ manually.
@@ -417,7 +417,8 @@ namespace cfg
 	char mqtt_user[LEN_USER_INFLUX] = MQTT_USER;
 	char mqtt_pwd[LEN_PASS_INFLUX] = MQTT_PWD;
 	char mqtt_topic[LEN_MQTT_HEADER] = MQTT_TOPIC;
-	char mqtt_token[LEN_MQTT_TOKEN] = MQTT_TOKEN;
+
+	char mqtt_token[LEN_MQTT_TOKEN] = MQTT_TOKEN;		// global MQTT token. (used in status message)
 
 	// *** MQTT Broker 2 ***
 	char mqtt_server_2[LEN_HOST_CUSTOM];
@@ -425,8 +426,6 @@ namespace cfg
 	char mqtt_user_2[LEN_USER_INFLUX] = MQTT_USER;
 	char mqtt_pwd_2[LEN_PASS_INFLUX] = MQTT_PWD;
 	char mqtt_topic_2[LEN_MQTT_HEADER] = MQTT_TOPIC;
-	//char mqtt_token_2[LEN_MQTT_TOKEN] = MQTT_TOKEN;	= mqtt_token
-
 #endif
 
 	/// @brief : 
@@ -6590,7 +6589,6 @@ static void fetchSensorSEN5X(String &s)
 
 	//if (IsSensirionModel())		//(memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
 	{
-		//result_SEN5X = F("SEN55_");
 		debug_outln_verbose(FPSTR(DBG_TXT_START_READING), FPSTR((SENSIRION::SENSIRION_NAME[cfg::sen5x_read]).c_str()));
 	}
 
@@ -7693,13 +7691,10 @@ static void display_values()
 
 	if (cfg::IsSen5x_read())
 	{
-		if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
-		{
-			pm01_sensor = FPSTR(SENSORS_SEN55);
-			pm10_sensor = FPSTR(SENSORS_SEN55);
-			pm25_sensor = FPSTR(SENSORS_SEN55);
-			t_sensor = h_sensor = voc_sensor = nox_sensor = FPSTR(SENSORS_SEN55);
-		}
+		pm01_sensor = FPSTR(SEN5X_type);
+		pm10_sensor = FPSTR(SEN5X_type);
+		pm25_sensor = FPSTR(SEN5X_type);
+		t_sensor = h_sensor = voc_sensor = nox_sensor = FPSTR(SEN5X_type);
 
 		pm01_value = last_value_SEN5X_P0;
 		pm25_value = last_value_SEN5X_P2;
@@ -7716,7 +7711,7 @@ static void display_values()
 		t_value = last_value_SEN5X_T;
 		h_value = last_value_SEN5X_H;
 		voc_value = last_value_SEN5X_VOC;
-		nox_value = last_value_SEN5X_NOX;			// OLED display => NOx value.
+		nox_value = last_value_SEN5X_NOX; // OLED display => NOx value.
 	}
 
 	if (cfg::sps30_read)
@@ -7992,7 +7987,7 @@ static void display_values()
 			break;
 
 		case 13:
-			display_header = F("Sensirion SEN5X");
+			display_header = F("Sensirion ") + String(FPSTR(SEN5X_type));
 
 			// if (memcmp(SEN5X_type, SENSOR_SEN50, 6) == 0)
 			// {
@@ -8004,7 +7999,7 @@ static void display_values()
 			// 	display_lines[2] = std::move(tmpl(F("VOC: {v} (index)"), check_display_value(voc_value, -1, 1, 6)));
 			// }
 			// else 
-			if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
+			//if (memcmp(SEN5X_type, SENSOR_SEN55, 6) == 0)
 			{
 				// display_lines[0] = std::move(tmpl(F("Humi: {v} %"), check_display_value(h_value, -1, 1, 6)));
 				// display_lines[1] = std::move(tmpl(F(": {v} (index)"), check_display_value(voc_value, -1, 1, 6)));
